@@ -12,3 +12,4 @@ Currently not functional as an editor.
 
 If you have any expertise in networking or editor creation, feel free to lend a hand! Especially let me know if there's something obviously wrong; I do not have a lot of networking experience yet, nor knowledge of networking insecurities.
 
+Dual-licensed as either MIT or Apache 2.0
