@@ -87,11 +87,11 @@ impl TabRegistry {
     }
 }
 
-pub trait EditorTab: IntoAny
+pub trait EditorTab: Any
 where
     Self: Any + Send + Sync,
 {
-    fn name(&self) -> bevy_egui::egui::RichText;
+    fn name(&self) -> egui::RichText;
 
     fn display(&mut self, ui: &mut egui::Ui);
 }
@@ -110,7 +110,7 @@ where
 }
 impl<T: EditorTab> IntoTabRegistration for T {}
 
-trait IntoAny {
+pub trait IntoAny {
     fn any(&self) -> &dyn Any;
 
     fn any_mut(&mut self) -> &mut dyn Any;

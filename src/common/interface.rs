@@ -19,7 +19,7 @@ impl<In, Out> Interface<In, Out> {
 
     pub fn wait_for_response<F: FnMut(&In) -> bool>(
         &mut self,
-        predicate: F,
+        mut predicate: F,
     ) -> Result<In, WaitForResponseError> {
         let msg_idx = self
             .unhandled
@@ -41,7 +41,7 @@ impl<In, Out> Interface<In, Out> {
         }
     }
 
-    pub fn get_unhandled_responses<F: FnMut(&In) -> bool>(&mut self, predicate: F) -> Vec<In> {
+    pub fn get_unhandled_responses<F: FnMut(&In) -> bool>(&mut self, mut predicate: F) -> Vec<In> {
         let mut responses = vec![];
         let mut idx = 0;
         while idx < self.unhandled.len() {

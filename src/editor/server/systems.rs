@@ -59,7 +59,7 @@ pub async fn run_server(
     std::fs::write("certificate.der", cert.clone())?;
     let server_config = super::server_config(cert, key)?;
 
-    let (endpoint, mut incoming) = Endpoint::server(server_config, server_addr())?;
+    let (_endpoint, mut incoming) = Endpoint::server(server_config, server_addr())?;
 
     println!("Accepting connections!");
 
