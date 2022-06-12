@@ -1,17 +1,16 @@
-use super::*;
+use bevy::prelude::*;
+use server::ServerPlugin;
+use tabs::TabPlugin;
+use ui::UiPlugin;
 
-mod r#async;
-mod plugin;
-mod systems;
-
-pub use plugin::*;
-pub use r#async::*;
-pub use systems::*;
+pub mod server;
+pub mod tabs;
+pub mod ui;
 
 /// The entry point for the Ouroboros editor application.
 ///
 /// ### Example:
-/// ```
+/// ```ignore
 /// use bevy_mod_ouroboros::*;
 ///
 /// fn main() {
@@ -33,16 +32,13 @@ impl Editor {
     }
 }
 
-fn generate_self_signed_cert() -> Result<(rustls::Certificate, rustls::PrivateKey), Box<dyn Error>>
-{
-    let cert = rcgen::generate_simple_self_signed(vec!["localhost".to_string()])?;
-    let key = rustls::PrivateKey(cert.serialize_private_key_der());
-    Ok((rustls::Certificate(cert.serialize_der()?), key))
-}
+pub struct EditorPlugin;
 
-fn server_config(
-    cert: rustls::Certificate,
-    key: rustls::PrivateKey,
-) -> Result<ServerConfig, rustls::Error> {
-    ServerConfig::with_single_cert(vec![cert], key)
+impl Plugin for EditorPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins(DefaultPlugins)
+            .add_plugin(ServerPlugin)
+            .add_plugin(UiPlugin)
+            .add_plugin(TabPlugin);
+    }
 }

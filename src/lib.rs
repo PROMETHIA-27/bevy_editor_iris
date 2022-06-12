@@ -1,36 +1,17 @@
-use bevy::prelude::*;
-use futures_util::StreamExt;
-use quinn::*;
-use std::{
-    error::Error,
-    sync::mpsc::{Receiver, Sender},
-    thread::JoinHandle,
-};
+pub mod common;
+pub mod editor;
+pub mod plugin;
 
-mod editor;
-mod plugin;
+pub mod prelude {
+    pub use super::editor::{Editor, EditorPlugin};
+    pub use super::plugin::OuroborosClientPlugin;
+}
 
-pub use editor::{Editor, EditorPlugin};
-pub use plugin::OuroborosClientPlugin;
-
+// TODO: These won't be necessary forever
 fn server_addr() -> std::net::SocketAddr {
     "127.0.0.1:5001".parse().unwrap()
 }
 
 fn client_addr() -> std::net::SocketAddr {
     "127.0.0.1:5000".parse().unwrap()
-}
-
-#[repr(u8)]
-#[non_exhaustive]
-#[derive(Clone, Copy, Debug, num_enum::TryFromPrimitive, PartialEq, Eq)]
-enum EditorMessage {
-    Ping = 255,
-}
-
-#[repr(u8)]
-#[non_exhaustive]
-#[derive(Clone, Copy, Debug, num_enum::TryFromPrimitive, PartialEq, Eq)]
-enum ClientMessage {
-    Ping = 255,
 }

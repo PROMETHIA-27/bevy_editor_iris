@@ -1,16 +1,10 @@
-use super::*;
+use bevy::prelude::*;
+use client::ClientPlugin;
+use quinn::ClientConfig;
+use tabs::TabPlugin;
 
-mod r#async;
-mod plugin;
-mod resources;
-mod systems;
-
-pub use plugin::*;
-pub use r#async::*;
-pub use resources::*;
-pub use systems::*;
-
-type Command = fn(&mut World) -> Option<Vec<u8>>;
+pub mod client;
+pub mod tabs;
 
 fn client_config() -> ClientConfig {
     let cert = rustls::Certificate(std::fs::read("certificate.der").unwrap());
@@ -19,4 +13,12 @@ fn client_config() -> ClientConfig {
     store.add(&cert).unwrap();
 
     ClientConfig::with_root_certificates(store)
+}
+
+pub struct OuroborosClientPlugin;
+
+impl Plugin for OuroborosClientPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugin(ClientPlugin).add_plugin(TabPlugin);
+    }
 }
