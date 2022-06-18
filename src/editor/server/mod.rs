@@ -13,7 +13,8 @@ impl Plugin for ServerPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.insert_resource(resources::EntityCache::default())
             .add_startup_system(systems::open_server_thread.exclusive_system())
-            .add_system_to_stage(CoreStage::PreUpdate, systems::update_entity_cache);
+            .add_system_to_stage(CoreStage::PreUpdate, systems::update_entity_cache)
+            .add_system(systems::monitor_server_thread.exclusive_system());
     }
 }
 

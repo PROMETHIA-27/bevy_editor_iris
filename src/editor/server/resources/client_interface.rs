@@ -1,21 +1,16 @@
-use crate::common::{
-    ClientMessage, EditorMessage, Interface, ReflectObject, RemoteEntity, WaitForResponseError,
-};
+use crate::common::*;
 use bevy::prelude::*;
 use std::any::type_name;
 use thiserror::Error;
 use tokio::sync::mpsc::error::SendError;
 
-pub type ClientInterface = Interface<ClientMessage, EditorMessage>;
+pub type ClientInterface = Interface<Box<dyn ClientMessage>, Box<dyn EditorMessage>>;
 
 impl ClientInterface {
-    pub fn collect_entity_updates(&mut self) -> Vec<Vec<RemoteEntity>> {
-        self.get_unhandled_responses(|msg| matches!(msg, ClientMessage::EntityUpdate(..)))
+    pub fn collect_messages<M: ClientMessage>(&mut self) -> Vec<M> {
+        self.get_unhandled_responses(|msg| msg.is::<M>())
             .into_iter()
-            .map(|msg| match msg {
-                ClientMessage::EntityUpdate(entities) => entities,
-                _ => unreachable!(),
-            })
+            .map(|msg| *msg.any().downcast::<M>().unwrap())
             .collect()
     }
 
@@ -23,20 +18,21 @@ impl ClientInterface {
         &mut self,
         entities: Vec<RemoteEntity>,
     ) -> Result<Vec<ReflectObject>, QueryComponentError> {
-        self.outgoing.blocking_send(EditorMessage::ComponentQuery(
-            vec![type_name::<T>().to_string()],
-            entities,
-        ))?;
+        self.outgoing
+            .blocking_send(Box::new(message::ComponentQuery {
+                components: vec![type_name::<T>().to_string()],
+                entities,
+            }))?;
 
-        Ok(match self
-            .wait_for_response(|msg| matches!(msg, ClientMessage::ComponentResponse(..)))?
-        {
-            ClientMessage::ComponentResponse(components) => components,
-            _ => unreachable!(),
-        }
-        .into_iter()
-        .flatten()
-        .collect())
+        Ok(self
+            .wait_for_response(|msg| msg.is::<message::ComponentResponse>())?
+            .any()
+            .downcast::<message::ComponentResponse>()
+            .unwrap()
+            .components
+            .into_iter()
+            .flatten()
+            .collect())
     }
 
     pub fn query_components<T: ComponentQuery>(
@@ -44,25 +40,28 @@ impl ClientInterface {
         entities: Vec<RemoteEntity>,
     ) -> Result<Vec<Vec<ReflectObject>>, QueryComponentError> {
         self.outgoing
-            .blocking_send(EditorMessage::ComponentQuery(T::into_names(), entities))?;
+            .blocking_send(Box::new(message::ComponentQuery {
+                components: T::into_names(),
+                entities,
+            }))?;
 
-        Ok(
-            match self
-                .wait_for_response(|msg| matches!(msg, ClientMessage::ComponentResponse(..)))?
-            {
-                ClientMessage::ComponentResponse(components) => components,
-                _ => unreachable!(),
-            },
-        )
+        Ok(self
+            .wait_for_response(|msg| msg.is::<message::ComponentResponse>())?
+            .any()
+            .downcast::<message::ComponentResponse>()
+            .unwrap()
+            .components
+            .into_iter()
+            .collect())
     }
 }
 
 #[derive(Debug, Error)]
 pub enum QueryComponentError {
-    #[error("encountered a WaitForResponseError")]
+    #[error(transparent)]
     WaitForResponseError(#[from] WaitForResponseError),
-    #[error("encountered a SendError")]
-    SendError(#[from] SendError<EditorMessage>),
+    #[error(transparent)]
+    SendError(#[from] SendError<Box<dyn EditorMessage>>),
 }
 
 pub trait ComponentQuery {

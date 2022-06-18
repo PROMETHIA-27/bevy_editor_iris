@@ -1,7 +1,11 @@
 mod interface;
-mod messages;
+pub mod message;
 mod serde;
 
 pub use self::serde::*;
 pub use interface::*;
-pub use messages::*;
+
+pub use message::{
+    ClientMessage, EditorMessage, ReflectClientMessage, ReflectEditorMessage,
+    ReflectMessageFromReflect,
+};

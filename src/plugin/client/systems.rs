@@ -1,5 +1,5 @@
 use super::{resources::ClientThread, EditorInterface};
-use crate::common::{ClientMessage, EditorMessage};
+use crate::common::*;
 use bevy::prelude::*;
 use futures_util::StreamExt;
 use quinn::{ClientConfig, ConnectError, ConnectionError, Endpoint, NewConnection};
@@ -78,8 +78,8 @@ async fn connect_to_editor() -> Result<NewConnection, EditorConnectError> {
 
 async fn communicate_with_editor(
     mut connection: NewConnection,
-    _editor_tx: Sender<EditorMessage>,
-    mut _client_rx: Receiver<ClientMessage>,
+    _editor_tx: Sender<Box<dyn EditorMessage>>,
+    mut _client_rx: Receiver<Box<dyn ClientMessage>>,
 ) {
     loop {
         let next_stream = connection.bi_streams.next().await;

@@ -1,8 +1,9 @@
+use bevy::reflect::FromReflect;
 use bevy::{prelude::*, reflect::TypeRegistry};
 use serde::{de::DeserializeSeed, Deserialize, Serialize, Serializer};
 use std::cell::RefCell;
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, Reflect)]
+#[derive(Clone, Copy, Debug, Deserialize, FromReflect, Serialize, Reflect)]
 pub struct RemoteEntity {
     generation: u32,
     id: u32,
@@ -53,14 +54,77 @@ pub fn replace_type_registry(registry: TypeRegistry) -> Option<TypeRegistry> {
 }
 
 pub fn take_type_registry() -> Option<TypeRegistry> {
-    TYPE_REGISTRY.with(|cell| cell.borrow_mut().take())
+    TYPE_REGISTRY.with(|cell| cell.take())
 }
 
-#[derive(Debug, Deref, DerefMut)]
+// TODO: There should be a native solution to this in bevy in the future, and ReflectObject can be entirely removed.
+// 6/17/2022
+#[derive(Debug)]
 pub struct ReflectObject(Box<dyn Reflect>);
+
+unsafe impl Reflect for ReflectObject {
+    fn type_name(&self) -> &str {
+        self.0.type_name()
+    }
+
+    // Avoid UB which is caused by not returning self
+    // This does lead to unintuitive behavior, though.
+    fn any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn apply(&mut self, value: &dyn Reflect) {
+        self.0.apply(value)
+    }
+
+    fn set(&mut self, value: Box<dyn Reflect>) -> Result<(), Box<dyn Reflect>> {
+        self.0.set(value)
+    }
+
+    fn reflect_ref(&self) -> bevy::reflect::ReflectRef {
+        self.0.reflect_ref()
+    }
+
+    fn reflect_mut(&mut self) -> bevy::reflect::ReflectMut {
+        self.0.reflect_mut()
+    }
+
+    fn clone_value(&self) -> Box<dyn Reflect> {
+        self.0.clone_value()
+    }
+
+    fn reflect_hash(&self) -> Option<u64> {
+        self.0.reflect_hash()
+    }
+
+    fn reflect_partial_eq(&self, value: &dyn Reflect) -> Option<bool> {
+        self.0.reflect_partial_eq(value)
+    }
+
+    fn serializable(&self) -> Option<bevy::reflect::serde::Serializable> {
+        Some(bevy::reflect::serde::Serializable::Borrowed(self))
+    }
+}
+
+impl FromReflect for ReflectObject {
+    fn from_reflect(reflect: &dyn Reflect) -> Option<Self> {
+        Some(Self(reflect.clone_value()))
+    }
+}
 
 impl From<Box<dyn Reflect>> for ReflectObject {
     fn from(b: Box<dyn Reflect>) -> Self {
+        Self(b)
+    }
+}
+
+impl<T: Reflect> From<Box<T>> for ReflectObject {
+    fn from(b: Box<T>) -> Self {
+        let b: Box<dyn Reflect> = b;
         Self(b)
     }
 }
@@ -80,7 +144,8 @@ impl Serialize for ReflectObject {
             let reg = reg.expect("Type registry must be placed in TLS to perform serialization");
             let lock = reg.internal.read();
 
-            bevy::reflect::serde::ReflectSerializer::new(self.as_ref(), &lock).serialize(serializer)
+            bevy::reflect::serde::ReflectSerializer::new(self.0.as_ref(), &lock)
+                .serialize(serializer)
         })
     }
 }
@@ -96,7 +161,52 @@ impl<'de> Deserialize<'de> for ReflectObject {
 
             bevy::reflect::serde::ReflectDeserializer::new(&lock)
                 .deserialize(deserializer)
-                .map(|b| b.into())
+                .map(|b| Self(b))
         })
     }
+}
+
+#[test]
+fn reflect_object_serialization() -> Result<(), Box<dyn std::error::Error>> {
+    let registry = TypeRegistry::default();
+
+    #[derive(Clone, Debug, Default, PartialEq, Reflect)]
+    struct TestStruct {
+        x: i32,
+        str: String,
+        vec: Vec4,
+    }
+
+    let test = TestStruct {
+        x: 12,
+        str: "Test".to_string(),
+        vec: Vec4::new(1.0, 2.0, 3.0, 4.0),
+    };
+
+    {
+        let mut registry = registry.write();
+        registry.register::<i32>();
+        registry.register::<String>();
+        registry.register::<Vec4>();
+        registry.register::<TestStruct>();
+    }
+
+    let _ = replace_type_registry(registry);
+
+    let reflect: Box<dyn Reflect> = Box::new(test.clone());
+
+    let object: ReflectObject = reflect.into();
+
+    let ser = serde_yaml::to_string(&object)?;
+
+    println!("{ser}");
+
+    let deser: ReflectObject = serde_yaml::from_str(&ser)?;
+    let reflect: Box<dyn Reflect> = deser.into();
+    let mut deser_test: TestStruct = TestStruct::default();
+    deser_test.apply(reflect.as_ref());
+
+    assert_eq!(test, deser_test);
+
+    Ok(())
 }
