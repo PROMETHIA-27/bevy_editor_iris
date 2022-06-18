@@ -1,18 +1,13 @@
-use std::any::Any;
-
-use super::serde::{ReflectObject, RemoteEntity};
 use bevy::{
     prelude::*,
-    reflect::{FromReflect, FromType, TypeRegistry},
+    reflect::{FromReflect, FromType},
 };
-use bevy_mod_ouroboros_derive::*;
+use std::any::Any;
 
-// #[non_exhaustive]
-// #[derive(Debug, Deserialize, Serialize)]
-// pub enum EditorMessage {
-//     ComponentQuery(Vec<String>, Vec<RemoteEntity>),
-//     Ping,
-// }
+#[path = "messages.rs"]
+mod messages;
+
+pub use messages::*;
 
 pub trait EditorMessage: Reflect {
     fn any(self: Box<Self>) -> Box<dyn Any>;
@@ -83,15 +78,6 @@ impl<T: EditorMessage + Reflect> FromType<T> for ReflectEditorMessage {
         }
     }
 }
-
-// #[non_exhaustive]
-// #[derive(Debug, Deserialize, Serialize)]
-// pub enum ClientMessage {
-//     ComponentResponse(Vec<Vec<ReflectObject>>),
-//     EntityUpdate(Vec<RemoteEntity>),
-//     Ping,
-// }
-
 pub trait ClientMessage: Reflect {
     fn any(self: Box<Self>) -> Box<dyn Any>;
 
@@ -171,47 +157,6 @@ impl<T: ClientMessage + Reflect> FromType<T> for ReflectClientMessage {
     }
 }
 
-// impl Default for ClientMessage {
-//     fn default() -> Self {
-//         ClientMessage::Ping
-//     }
-// }
-
-#[dual_message]
-pub struct Ping;
-
-#[client_message]
-pub struct EntityUpdate {
-    pub entities: Vec<RemoteEntity>,
-}
-
-#[derive(Default)]
-#[client_message]
-pub struct ComponentResponse {
-    pub components: Vec<Vec<ReflectObject>>,
-}
-
-#[derive(Default)]
-#[editor_message]
-pub struct ComponentQuery {
-    pub components: Vec<String>,
-    pub entities: Vec<RemoteEntity>,
-}
-
-pub fn register_messages(registry: ResMut<TypeRegistry>) {
-    let mut registry = registry.write();
-
-    macro_rules! register {
-        ($($ty:path),* $(,)?) => {
-            $(
-                registry.register::<$ty>();
-            )*
-        }
-    }
-
-    register![Ping, EntityUpdate, ComponentResponse,];
-}
-
 // TODO: This may be replaced in the future by something like `ReflectFromReflect`, but unfortunately for now this is necessary
 pub trait MessageFromReflect {
     fn from_reflect(&self, reflect: &dyn Reflect) -> Option<Box<Self>>;
@@ -243,53 +188,4 @@ impl<T: Reflect + FromReflect> FromType<T> for ReflectMessageFromReflect {
             },
         }
     }
-}
-
-#[test]
-fn component_response_ser() -> Result<(), Box<dyn std::error::Error>> {
-    let registry = TypeRegistry::default();
-
-    {
-        let mut registry = registry.write();
-        registry.register::<i32>();
-        registry.register::<u32>();
-        registry.register::<usize>();
-        registry.register::<String>();
-        registry.register::<Vec4>();
-        registry.register::<ComponentResponse>();
-        registry.register::<Vec<Vec<ReflectObject>>>();
-    }
-
-    let _ = crate::common::replace_type_registry(registry);
-
-    let msg = ComponentResponse {
-        components: vec![
-            vec![Box::new(12i32).into(), Box::new("bruh".to_string()).into()],
-            vec![
-                Box::new(72u32).into(),
-                Box::new(100usize).into(),
-                Box::new("SHITE".to_string()).into(),
-            ],
-        ],
-    };
-
-    let object: ReflectObject = Box::new(msg).into();
-
-    let ser = serde_yaml::to_string(&object)?;
-
-    println!("{ser}");
-
-    let deser: ReflectObject = serde_yaml::from_str(&ser)?;
-    let reflect: Box<dyn Reflect> = deser.into();
-    use std::ops::Deref;
-    let x = reflect.type_name();
-    let y = reflect.deref().type_name();
-
-    println!("{x}");
-    println!("{y}");
-
-    let mut deser: ComponentResponse = ComponentResponse::default();
-    deser.apply(reflect.as_ref());
-
-    Ok(())
 }

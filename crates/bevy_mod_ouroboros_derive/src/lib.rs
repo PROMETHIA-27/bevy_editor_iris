@@ -7,15 +7,15 @@ pub fn derive_client(input: TokenStream) -> TokenStream {
     let DeriveInput { ident, .. } = parse_macro_input!(input);
     quote! {
         impl ClientMessage for #ident {
-            fn any(self: Box<Self>) -> Box<dyn Any> {
+            fn any(self: Box<Self>) -> Box<dyn std::any::Any> {
                 self
             }
 
-            fn any_ref(&self) -> &dyn Any {
+            fn any_ref(&self) -> &dyn std::any::Any {
                 self
             }
 
-            fn any_mut(&mut self) -> &mut dyn Any {
+            fn any_mut(&mut self) -> &mut dyn std::any::Any {
                 self
             }
 
@@ -40,15 +40,15 @@ pub fn derive_editor(input: TokenStream) -> TokenStream {
     let DeriveInput { ident, .. } = parse_macro_input!(input);
     quote! {
         impl EditorMessage for #ident {
-            fn any(self: Box<Self>) -> Box<dyn Any> {
+            fn any(self: Box<Self>) -> Box<dyn std::any::Any> {
                 self
             }
 
-            fn any_ref(&self) -> &dyn Any {
+            fn any_ref(&self) -> &dyn std::any::Any {
                 self
             }
 
-            fn any_mut(&mut self) -> &mut dyn Any {
+            fn any_mut(&mut self) -> &mut dyn std::any::Any {
                 self
             }
 
