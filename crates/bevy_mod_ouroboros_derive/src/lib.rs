@@ -67,3 +67,33 @@ pub fn derive_editor(input: TokenStream) -> TokenStream {
     }
     .into()
 }
+
+#[proc_macro_attribute]
+pub fn dual_message(_params: TokenStream, item: TokenStream) -> TokenStream {
+    let item: proc_macro2::TokenStream = item.into();
+    TokenStream::from(quote! {
+        #[derive(Reflect, FromReflect, ClientMessage, EditorMessage)]
+        #[reflect(ClientMessage, EditorMessage, MessageFromReflect)]
+        #item
+    })
+}
+
+#[proc_macro_attribute]
+pub fn client_message(_params: TokenStream, item: TokenStream) -> TokenStream {
+    let item: proc_macro2::TokenStream = item.into();
+    TokenStream::from(quote! {
+        #[derive(Reflect, FromReflect, ClientMessage)]
+        #[reflect(ClientMessage, MessageFromReflect)]
+        #item
+    })
+}
+
+#[proc_macro_attribute]
+pub fn editor_message(_params: TokenStream, item: TokenStream) -> TokenStream {
+    let item: proc_macro2::TokenStream = item.into();
+    TokenStream::from(quote! {
+        #[derive(Reflect, FromReflect, EditorMessage)]
+        #[reflect(EditorMessage, MessageFromReflect)]
+        #item
+    })
+}

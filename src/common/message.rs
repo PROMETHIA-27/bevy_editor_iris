@@ -5,7 +5,7 @@ use bevy::{
     prelude::*,
     reflect::{FromReflect, FromType, TypeRegistry},
 };
-use bevy_mod_ouroboros_derive::{ClientMessage, EditorMessage};
+use bevy_mod_ouroboros_derive::*;
 
 // #[non_exhaustive]
 // #[derive(Debug, Deserialize, Serialize)]
@@ -177,24 +177,22 @@ impl<T: ClientMessage + Reflect> FromType<T> for ReflectClientMessage {
 //     }
 // }
 
-#[derive(Reflect, FromReflect, ClientMessage, EditorMessage)]
-#[reflect(ClientMessage, MessageFromReflect)]
+#[dual_message]
 pub struct Ping;
 
-#[derive(Reflect, FromReflect, ClientMessage)]
-#[reflect(ClientMessage, MessageFromReflect)]
+#[client_message]
 pub struct EntityUpdate {
     pub entities: Vec<RemoteEntity>,
 }
 
-#[derive(Default, Reflect, FromReflect, ClientMessage)]
-#[reflect(ClientMessage, MessageFromReflect)]
+#[derive(Default)]
+#[client_message]
 pub struct ComponentResponse {
     pub components: Vec<Vec<ReflectObject>>,
 }
 
-#[derive(Default, Reflect, FromReflect, EditorMessage)]
-#[reflect(EditorMessage, MessageFromReflect)]
+#[derive(Default)]
+#[editor_message]
 pub struct ComponentQuery {
     pub components: Vec<String>,
     pub entities: Vec<RemoteEntity>,
