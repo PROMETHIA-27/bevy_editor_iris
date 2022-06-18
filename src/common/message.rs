@@ -23,6 +23,15 @@ pub trait EditorMessage: Reflect {
     fn borrow_reflect_mut(&mut self) -> &mut dyn Reflect;
 }
 
+impl dyn EditorMessage {
+    /// Returns `true` if the underlying value is of type `T`, or `false`
+    /// otherwise.
+    #[inline]
+    pub fn is<T: 'static>(&self) -> bool {
+        self.any_ref().is::<T>()
+    }
+}
+
 impl std::fmt::Debug for dyn EditorMessage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.any_ref().fmt(f)
