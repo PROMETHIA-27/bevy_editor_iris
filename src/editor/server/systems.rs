@@ -7,16 +7,12 @@ use crate::{
 use bevy::prelude::*;
 use futures_util::StreamExt;
 use quinn::Endpoint;
-use std::sync::{
-    atomic::AtomicUsize,
-    mpsc::{Receiver, Sender},
-    Arc,
-};
+use std::sync::mpsc::{Receiver, Sender};
 
 pub async fn run_server(
     local_rx: Receiver<(StreamId, Box<dyn Message>)>,
     remote_tx: Sender<(StreamId, Box<dyn Message>)>,
-    mut stream_counter: Arc<AtomicUsize>,
+    mut stream_counter: StreamCounter,
 ) -> Result<(), RemoteThreadError> {
     let (cert, key) = generate_self_signed_cert()?;
     std::fs::write("certificate.der", cert.clone())?;
@@ -43,9 +39,9 @@ pub fn update_entity_cache(
     mut cache: ResMut<EntityCache>,
     mut reader: EventReader<MessageReceived<EntityUpdate>>,
 ) {
-    cache.extend(reader.iter().map(|up| &up.entities).flatten());
+    cache.extend(reader.iter().map(|up| &up.msg.entities).flatten());
 }
 
-pub fn keepalive(mut writer: EventWriter<SendMessage<Ping>>) {
-    writer.send(SendMessage(Ping));
+pub fn keepalive(mut writer: ResMut<MessageWriter<Ping>>) {
+    writer.send(None, Ping);
 }

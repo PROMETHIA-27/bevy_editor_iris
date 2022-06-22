@@ -1,16 +1,12 @@
 use super::client_config;
 use crate::common::{asynchronous::*, *};
 use quinn::Endpoint;
-use std::sync::{
-    atomic::AtomicUsize,
-    mpsc::{Receiver, Sender},
-    Arc,
-};
+use std::sync::mpsc::{Receiver, Sender};
 
 pub async fn run_client(
     local_rx: Receiver<(StreamId, Box<dyn Message>)>,
     remote_tx: Sender<(StreamId, Box<dyn Message>)>,
-    mut stream_counter: Arc<AtomicUsize>,
+    mut stream_counter: StreamCounter,
 ) -> Result<(), RemoteThreadError> {
     let endpoint = Endpoint::client(crate::client_addr())?;
 

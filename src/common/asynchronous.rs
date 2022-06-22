@@ -10,11 +10,7 @@ use quinn::{
 use rcgen::RcgenError;
 use std::{
     pin::Pin,
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        mpsc::{channel, Receiver, RecvError, SendError, Sender, TryRecvError},
-        Arc,
-    },
+    sync::mpsc::{channel, Receiver, RecvError, SendError, Sender, TryRecvError},
     task::{Context, Poll},
     thread::JoinHandle,
 };
@@ -47,7 +43,7 @@ pub fn open_remote_thread<F: 'static + Future<Output = Result<(), RemoteThreadEr
         + Fn(
             Receiver<(StreamId, Box<dyn Message>)>,
             Sender<(StreamId, Box<dyn Message>)>,
-            Arc<AtomicUsize>,
+            StreamCounter,
         ) -> F
         + Send
         + Sync
@@ -59,18 +55,17 @@ pub fn open_remote_thread<F: 'static + Future<Output = Result<(), RemoteThreadEr
         let (local_tx, local_rx) = channel();
         let (remote_tx, remote_rx) = channel();
 
-        let stream_counter = Arc::new(AtomicUsize::new(0));
+        let stream_counter = world.remove_resource::<StreamCounter>().expect("failed to get StreamCounter while starting remote thread. Ensure a StreamCounter is added to the world at startup");
+        let thread_counter = stream_counter.clone();
 
         let interface = Interface::new(remote_rx, local_tx, stream_counter.clone());
         world.insert_resource(interface);
 
-        let registry = world.remove_resource::<TypeRegistry>().expect("failed to get TypeRegistry while starting client thread. Ensure a TypeRegistry is added to the world at startup");
+        let registry = world.remove_resource::<TypeRegistry>().expect("failed to get TypeRegistry while starting remote thread. Ensure a TypeRegistry is added to the world at startup");
         let client_registry = registry.clone();
         world.insert_resource(registry);
 
         let client_thread = std::thread::spawn(move || {
-            let run_fn = run_fn;
-
             let runtime = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()
@@ -78,9 +73,10 @@ pub fn open_remote_thread<F: 'static + Future<Output = Result<(), RemoteThreadEr
 
             _ = replace_type_registry(client_registry);
 
-            runtime.block_on(run_fn(local_rx, remote_tx, stream_counter))
+            runtime.block_on(run_fn(local_rx, remote_tx, thread_counter))
         });
 
+        world.insert_resource(stream_counter);
         world.insert_resource(RemoteThread(client_thread));
     }
 }
@@ -115,7 +111,7 @@ pub async fn process_connection(
     mut new: NewConnection,
     local_rx: &Receiver<(StreamId, Box<dyn Message>)>,
     remote_tx: &Sender<(StreamId, Box<dyn Message>)>,
-    stream_counter: &mut Arc<AtomicUsize>,
+    stream_counter: &mut StreamCounter,
 ) -> Result<(), ProcessConnectionError> {
     let mut pool = HashMap::default();
     let mut buffer = vec![0; 1024];
@@ -155,7 +151,7 @@ async fn process_stream(
     stream: Option<Result<(SendStream, RecvStream), ConnectionError>>,
     remote_tx: &Sender<(StreamId, Box<dyn Message>)>,
     pool: &mut HashMap<StreamId, (SendStream, RecvStream)>,
-    stream_counter: &mut Arc<AtomicUsize>,
+    stream_counter: &mut StreamCounter,
     buffer: &mut Vec<u8>,
 ) -> Result<(), ProcessStreamError> {
     let stream = stream.ok_or_else(|| ProcessStreamError::BiStreamsClosed)?;
@@ -183,7 +179,7 @@ async fn process_stream(
 
     println!("Deserialized message: {:?}", msg);
 
-    let stream_id = StreamId(stream_counter.fetch_add(1, Ordering::SeqCst));
+    let stream_id = stream_counter.next();
     remote_tx.send((stream_id, msg))?;
     pool.insert(stream_id, (send, recv));
 
@@ -263,38 +259,4 @@ async fn close_stream(
     send.finish().await?;
 
     Ok(())
-}
-
-pub fn monitor_remote_thread<F: 'static + Future<Output = Result<(), RemoteThreadError>>>(
-    run_fn: impl 'static
-        + Fn(
-            Receiver<(StreamId, Box<dyn Message>)>,
-            Sender<(StreamId, Box<dyn Message>)>,
-            Arc<AtomicUsize>,
-        ) -> F
-        + Send
-        + Sync
-        + Copy,
-) -> impl 'static + Fn(&mut World) {
-    move |world| {
-        let RemoteThread(thread) = world
-            .remove_resource::<RemoteThread>()
-            .expect("RemoteThread resource unexpectedly removed");
-
-        if !thread.is_finished() {
-            world.insert_resource(RemoteThread(thread));
-        } else {
-            match thread.join() {
-                Ok(Ok(())) => {
-                    eprintln!("Remote thread closed normally. Not reopening.");
-                    return;
-                }
-                Ok(Err(err)) => eprintln!("Remote thread closed with error {err:?}! Reopening."),
-                Err(_) => eprintln!("Remote thread closed with an unknown error! Reopening."),
-            }
-
-            _ = world.remove_resource::<Interface>();
-            open_remote_thread(run_fn)(world);
-        }
-    }
 }

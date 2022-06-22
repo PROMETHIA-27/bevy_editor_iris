@@ -11,28 +11,42 @@ use super::message::CloseTransaction;
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct StreamId(pub(crate) usize);
 
+#[derive(Clone)]
+pub struct StreamCounter(pub(crate) Arc<AtomicUsize>);
+
+impl Default for StreamCounter {
+    fn default() -> Self {
+        Self(Arc::new(AtomicUsize::new(0)))
+    }
+}
+
+impl StreamCounter {
+    pub fn next(&self) -> StreamId {
+        // Not certain whether or not strict ordering is required
+        let id = self.0.fetch_add(1, Ordering::SeqCst);
+        StreamId(id)
+    }
+}
+
 pub(crate) struct InternalInterface {
     pub(crate) incoming: Receiver<(StreamId, Box<dyn Message>)>,
     pub(crate) outgoing: Sender<(StreamId, Box<dyn Message>)>,
-    pub(crate) stream_counter: Arc<AtomicUsize>,
 }
 
 pub struct Interface {
     pub(crate) inner: Arc<Mutex<InternalInterface>>,
+    pub(crate) stream_counter: StreamCounter,
 }
 
 impl Interface {
     pub fn new(
         incoming: Receiver<(StreamId, Box<dyn Message>)>,
         outgoing: Sender<(StreamId, Box<dyn Message>)>,
-        stream_counter: Arc<AtomicUsize>,
+        stream_counter: StreamCounter,
     ) -> Self {
         Self {
-            inner: Arc::new(Mutex::new(InternalInterface {
-                outgoing,
-                incoming,
-                stream_counter,
-            })),
+            inner: Arc::new(Mutex::new(InternalInterface { outgoing, incoming })),
+            stream_counter,
         }
     }
 
@@ -50,6 +64,12 @@ impl Interface {
         }
     }
 
+    pub fn recv_all(&self) -> Result<Vec<(StreamId, Box<dyn Message>)>, InterfaceError> {
+        let inner = self.inner.lock().map_err(|_| InterfaceError::Poison)?;
+
+        Ok(inner.incoming.try_iter().collect())
+    }
+
     pub fn send(
         &self,
         id: Option<StreamId>,
@@ -57,13 +77,7 @@ impl Interface {
     ) -> Result<StreamId, InterfaceError> {
         let id = match id {
             Some(id) => id,
-            None => {
-                let inner = self.inner.lock().map_err(|_| InterfaceError::Poison)?;
-
-                // Not certain whether or not strict ordering is required
-                let id = inner.stream_counter.fetch_add(1, Ordering::SeqCst);
-                StreamId(id)
-            }
+            None => self.stream_counter.next(),
         };
 
         match self.inner.lock() {
@@ -73,6 +87,22 @@ impl Interface {
             },
             Err(_) => Err(InterfaceError::Poison),
         }
+    }
+
+    pub fn send_all(
+        &self,
+        messages: Vec<(StreamId, Box<dyn Message>)>,
+    ) -> Result<(), InterfaceError> {
+        let inner = self.inner.lock().map_err(|_| InterfaceError::Poison)?;
+
+        for (id, msg) in messages {
+            match inner.outgoing.send((id, msg)) {
+                Ok(()) => (),
+                Err(_) => return Err(InterfaceError::Disconnected),
+            }
+        }
+
+        Ok(())
     }
 
     pub fn close(&self, id: StreamId) -> Result<(), InterfaceError> {
@@ -90,6 +120,7 @@ impl Clone for Interface {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
+            stream_counter: self.stream_counter.clone(),
         }
     }
 }

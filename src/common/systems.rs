@@ -1,4 +1,7 @@
-use bevy::{ecs::schedule::ShouldRun, prelude::*};
+use crate::common::{asynchronous::*, *};
+use bevy::ecs::schedule::ShouldRun;
+use futures_util::Future;
+use std::sync::mpsc::Receiver;
 
 pub fn run_on_timer(duration: f32) -> impl FnMut(Res<Time>) -> ShouldRun {
     struct Timer {
@@ -19,6 +22,40 @@ pub fn run_on_timer(duration: f32) -> impl FnMut(Res<Time>) -> ShouldRun {
             ShouldRun::Yes
         } else {
             ShouldRun::No
+        }
+    }
+}
+
+pub fn monitor_remote_thread<F: 'static + Future<Output = Result<(), RemoteThreadError>>>(
+    run_fn: impl 'static
+        + Fn(
+            Receiver<(StreamId, Box<dyn Message>)>,
+            Sender<(StreamId, Box<dyn Message>)>,
+            StreamCounter,
+        ) -> F
+        + Send
+        + Sync
+        + Copy,
+) -> impl 'static + Fn(&mut World) {
+    move |world| {
+        let RemoteThread(thread) = world
+            .remove_resource::<RemoteThread>()
+            .expect("RemoteThread resource unexpectedly removed");
+
+        if !thread.is_finished() {
+            world.insert_resource(RemoteThread(thread));
+        } else {
+            match thread.join() {
+                Ok(Ok(())) => {
+                    eprintln!("Remote thread closed normally. Not reopening.");
+                    return;
+                }
+                Ok(Err(err)) => eprintln!("Remote thread closed with error {err:?}! Reopening."),
+                Err(_) => eprintln!("Remote thread closed with an unknown error! Reopening."),
+            }
+
+            _ = world.remove_resource::<Interface>();
+            open_remote_thread(run_fn)(world);
         }
     }
 }

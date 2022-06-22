@@ -1,11 +1,8 @@
-use asynchronous::{monitor_remote_thread, open_remote_thread, RemoteThreadError};
+use asynchronous::{open_remote_thread, RemoteThreadError};
 use bevy::prelude::*;
 use futures_util::Future;
-use std::sync::{
-    atomic::AtomicUsize,
-    mpsc::{Receiver, Sender},
-    Arc,
-};
+use message::{collect_messages, distribute_messages};
+use std::sync::mpsc::{Receiver, Sender};
 
 pub mod asynchronous;
 mod interface;
@@ -18,8 +15,8 @@ pub use interface::*;
 pub use systems::*;
 
 pub use message::{
-    AppRegisterMsgExt, DefaultMessages, Message, MessageDistributor, MessageReceived,
-    ReflectMessage, ReflectMessageFromReflect, RegisterMessage, SendMessage,
+    AppRegisterMsgExt, DefaultMessages, Message, MessageReceived, MessageWriter, ReflectMessage,
+    ReflectMessageFromReflect, RegisterMessage,
 };
 
 pub struct CommonPlugin<
@@ -27,7 +24,7 @@ pub struct CommonPlugin<
         + Fn(
             Receiver<(StreamId, Box<dyn Message>)>,
             Sender<(StreamId, Box<dyn Message>)>,
-            Arc<AtomicUsize>,
+            StreamCounter,
         ) -> F
         + Send
         + Sync
@@ -40,7 +37,7 @@ impl<
             + Fn(
                 Receiver<(StreamId, Box<dyn Message>)>,
                 Sender<(StreamId, Box<dyn Message>)>,
-                Arc<AtomicUsize>,
+                StreamCounter,
             ) -> F
             + Send
             + Sync
@@ -49,13 +46,16 @@ impl<
     > Plugin for CommonPlugin<Run, F>
 {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app.add_startup_system(open_remote_thread(self.0).exclusive_system())
+        app.insert_resource(StreamCounter::default())
+            .add_startup_system(open_remote_thread(self.0).exclusive_system())
             .add_system_set(
                 SystemSet::new()
                     .with_run_criteria(run_on_timer(1.0))
                     .with_system(monitor_remote_thread(self.0).exclusive_system()),
             )
             .add_distributor()
-            .add_messages::<DefaultMessages>();
+            .add_messages::<DefaultMessages>()
+            .add_system(distribute_messages.exclusive_system())
+            .add_system(collect_messages.exclusive_system());
     }
 }
