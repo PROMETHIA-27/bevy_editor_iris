@@ -1,20 +1,24 @@
+use crate::common::{asynchronous::*, *};
 use bevy::prelude::*;
 use quinn::ServerConfig;
 use rcgen::RcgenError;
+use systems::*;
 
 mod resources;
 mod systems;
 
-pub use resources::{ClientInterface, EntityCache, QueryComponentError};
+pub use resources::{EntityCache, QueryComponentError};
 
 pub struct ServerPlugin;
 
 impl Plugin for ServerPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.insert_resource(resources::EntityCache::default())
-            .add_startup_system(systems::open_server_thread.exclusive_system())
+            .add_startup_system(open_remote_thread(run_server).exclusive_system())
             .add_system_to_stage(CoreStage::PreUpdate, systems::update_entity_cache)
-            .add_system(systems::monitor_server_thread.exclusive_system());
+            .add_system(monitor_remote_thread(run_server).exclusive_system())
+            .add_distributor()
+            .add_messages::<DefaultMessages>();
     }
 }
 

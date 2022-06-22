@@ -1,4 +1,4 @@
-use crate::plugin::client::EditorInterface;
+use crate::{common::Interface, plugin::client::ClientInterfaceExt};
 use bevy::prelude::*;
 
 #[derive(Default, Reflect)]
@@ -11,18 +11,26 @@ impl Component for TrackedInEditor {
 pub fn tag_new_entities(
     mut commands: Commands,
     query: Query<Entity, Without<TrackedInEditor>>,
-    mut interface: NonSendMut<EditorInterface>,
+    interface: ResMut<Interface>,
 ) {
+    if query.is_empty() {
+        return;
+    }
+
     for entity in query.iter() {
         commands.entity(entity).insert(TrackedInEditor);
     }
 
-    _ = interface.send_entity_update(query.iter().collect());
+    _ = interface.send_entity_update(query.iter(), false);
 }
 
 pub fn tag_deleted_entities(
     removals: RemovedComponents<TrackedInEditor>,
-    mut interface: NonSendMut<EditorInterface>,
+    interface: ResMut<Interface>,
 ) {
-    _ = interface.send_entity_update(removals.iter().collect());
+    if removals.iter().next().is_none() {
+        return;
+    }
+
+    _ = interface.send_entity_update(removals.iter(), true);
 }
