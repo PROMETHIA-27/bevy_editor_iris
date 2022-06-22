@@ -18,16 +18,18 @@ impl<M: Message + GetTypeRegistration> RegisterMessage for M {
         let mut distributor = app.world.remove_resource::<MessageDistributor>().expect(
             "MessageDistributor not found; call app.add_distributor() before registering messages",
         );
-        let interface = app.world.remove_resource::<Interface>().expect("Interface not found; call app.add_startup_system(open_remote_thread({runner}).exclusive_system()) before registering messages");
+        let stream_counter = app
+            .world
+            .remove_resource::<StreamCounter>()
+            .expect("StreamCounter not found; insert a StreamCounter before registering messages");
 
-        app.insert_resource::<MessageWriter<M>>(MessageWriter::new(
-            interface.stream_counter.clone(),
-        ));
+        app.insert_resource::<MessageWriter<M>>(MessageWriter::new(stream_counter.clone()));
         app.add_event::<MessageReceived<M>>();
         inner.register::<M>();
         distributor.register::<M>();
 
         drop(inner);
+        app.world.insert_resource(stream_counter);
         app.world.insert_resource(registry);
         app.world.insert_resource(distributor);
     }
