@@ -1,4 +1,4 @@
-use crate::common::{asynchronous::*, *};
+use crate::common::*;
 use bevy::prelude::*;
 use quinn::ServerConfig;
 use rcgen::RcgenError;
@@ -13,12 +13,14 @@ pub struct ServerPlugin;
 
 impl Plugin for ServerPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app.insert_resource(resources::EntityCache::default())
-            .add_startup_system(open_remote_thread(run_server).exclusive_system())
+        app.add_plugin(CommonPlugin(run_server))
+            .insert_resource(resources::EntityCache::default())
             .add_system_to_stage(CoreStage::PreUpdate, systems::update_entity_cache)
-            .add_system(monitor_remote_thread(run_server).exclusive_system())
-            .add_distributor()
-            .add_messages::<DefaultMessages>();
+            .add_system_set(
+                SystemSet::new()
+                    .with_run_criteria(run_on_timer(5.0))
+                    .with_system(keepalive),
+            );
     }
 }
 

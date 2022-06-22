@@ -1,6 +1,6 @@
 use super::EntityCache;
 use crate::{
-    common::{asynchronous::*, *},
+    common::{asynchronous::*, message::*, *},
     editor::server::{generate_self_signed_cert, server_config},
     server_addr,
 };
@@ -41,7 +41,11 @@ pub async fn run_server(
 
 pub fn update_entity_cache(
     mut cache: ResMut<EntityCache>,
-    mut reader: EventReader<message::MessageReceived<message::EntityUpdate>>,
+    mut reader: EventReader<MessageReceived<EntityUpdate>>,
 ) {
     cache.extend(reader.iter().map(|up| &up.entities).flatten());
+}
+
+pub fn keepalive(mut writer: EventWriter<SendMessage<Ping>>) {
+    writer.send(SendMessage(Ping));
 }

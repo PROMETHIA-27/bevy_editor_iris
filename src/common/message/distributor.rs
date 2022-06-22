@@ -1,6 +1,5 @@
 use crate::common::*;
 use bevy::{
-    prelude::*,
     reflect::{GetTypeRegistration, TypeRegistry},
     utils::HashMap,
 };
@@ -87,10 +86,10 @@ pub fn distribute_messages(world: &mut World) {
 }
 
 #[derive(Deref, DerefMut)]
-pub struct MessageReceived<M: Message>(M);
+pub struct MessageReceived<M: Message>(pub M);
 
 #[derive(Deref, DerefMut)]
-pub struct SendMessage<M: Message>(M);
+pub struct SendMessage<M: Message>(pub M);
 
 #[derive(Default)]
 pub struct MessageDistributor {

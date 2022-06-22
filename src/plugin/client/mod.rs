@@ -1,7 +1,4 @@
-use crate::common::{
-    asynchronous::{monitor_remote_thread, open_remote_thread},
-    *,
-};
+use crate::common::*;
 use bevy::prelude::*;
 use quinn::ClientConfig;
 
@@ -16,10 +13,7 @@ pub struct ClientPlugin;
 
 impl Plugin for ClientPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(open_remote_thread(run_client).exclusive_system())
-            .add_system(monitor_remote_thread(run_client).exclusive_system())
-            .add_distributor()
-            .add_messages::<DefaultMessages>();
+        app.add_plugin(CommonPlugin(run_client));
     }
 }
 

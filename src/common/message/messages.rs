@@ -2,7 +2,7 @@ use crate::common::{
     serde::{ReflectObject, RemoteEntity},
     *,
 };
-use bevy::{prelude::*, reflect::FromReflect};
+use bevy::reflect::FromReflect;
 use bevy_mod_ouroboros_derive::*;
 
 #[message]

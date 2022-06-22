@@ -1,7 +1,7 @@
 use crate::common::message::CloseTransaction;
 
 use super::*;
-use bevy::{prelude::*, reflect::TypeRegistry, utils::HashMap};
+use bevy::{reflect::TypeRegistry, utils::HashMap};
 use futures_util::{select, Future, FutureExt, StreamExt};
 use quinn::{
     ConnectError, ConnectionError, NewConnection, ReadExactError, RecvStream, SendStream,
@@ -265,7 +265,6 @@ async fn close_stream(
     Ok(())
 }
 
-// TODO: Reduce the frequency of this system running
 pub fn monitor_remote_thread<F: 'static + Future<Output = Result<(), RemoteThreadError>>>(
     run_fn: impl 'static
         + Fn(

@@ -8,6 +8,9 @@ use thiserror::Error;
 
 use super::message::CloseTransaction;
 
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub struct StreamId(pub(crate) usize);
+
 pub(crate) struct InternalInterface {
     pub(crate) incoming: Receiver<(StreamId, Box<dyn Message>)>,
     pub(crate) outgoing: Sender<(StreamId, Box<dyn Message>)>,
