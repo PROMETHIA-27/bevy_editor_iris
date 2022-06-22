@@ -16,7 +16,6 @@ use std::sync::{
 pub async fn run_server(
     local_rx: Receiver<(StreamId, Box<dyn Message>)>,
     remote_tx: Sender<(StreamId, Box<dyn Message>)>,
-    close_rx: Receiver<StreamId>,
     mut stream_counter: Arc<AtomicUsize>,
 ) -> Result<(), RemoteThreadError> {
     let (cert, key) = generate_self_signed_cert()?;
@@ -34,7 +33,7 @@ pub async fn run_server(
 
         println!("Received a connection!");
 
-        process_connection(new, &local_rx, &remote_tx, &close_rx, &mut stream_counter).await?;
+        process_connection(new, &local_rx, &remote_tx, &mut stream_counter).await?;
     }
 
     Ok(())

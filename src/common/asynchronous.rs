@@ -1,3 +1,5 @@
+use crate::common::message::CloseTransaction;
+
 use super::*;
 use bevy::{prelude::*, reflect::TypeRegistry, utils::HashMap};
 use futures_util::{select, Future, FutureExt, StreamExt};
@@ -45,7 +47,6 @@ pub fn open_remote_thread<F: 'static + Future<Output = Result<(), RemoteThreadEr
         + Fn(
             Receiver<(StreamId, Box<dyn Message>)>,
             Sender<(StreamId, Box<dyn Message>)>,
-            Receiver<StreamId>,
             Arc<AtomicUsize>,
         ) -> F
         + Send
@@ -57,11 +58,10 @@ pub fn open_remote_thread<F: 'static + Future<Output = Result<(), RemoteThreadEr
 
         let (local_tx, local_rx) = channel();
         let (remote_tx, remote_rx) = channel();
-        let (close_tx, close_rx) = channel();
 
         let stream_counter = Arc::new(AtomicUsize::new(0));
 
-        let interface = Interface::new(remote_rx, local_tx, close_tx, stream_counter.clone());
+        let interface = Interface::new(remote_rx, local_tx, stream_counter.clone());
         world.insert_resource(interface);
 
         let registry = world.remove_resource::<TypeRegistry>().expect("failed to get TypeRegistry while starting client thread. Ensure a TypeRegistry is added to the world at startup");
@@ -78,7 +78,7 @@ pub fn open_remote_thread<F: 'static + Future<Output = Result<(), RemoteThreadEr
 
             _ = replace_type_registry(client_registry);
 
-            runtime.block_on(run_fn(local_rx, remote_tx, close_rx, stream_counter))
+            runtime.block_on(run_fn(local_rx, remote_tx, stream_counter))
         });
 
         world.insert_resource(RemoteThread(client_thread));
@@ -121,7 +121,6 @@ pub async fn process_connection(
     mut new: NewConnection,
     local_rx: &Receiver<(StreamId, Box<dyn Message>)>,
     remote_tx: &Sender<(StreamId, Box<dyn Message>)>,
-    close_rx: &Receiver<StreamId>,
     stream_counter: &mut Arc<AtomicUsize>,
 ) -> Result<(), ProcessConnectionError> {
     let mut pool = HashMap::default();
@@ -134,6 +133,12 @@ pub async fn process_connection(
             },
             msg = PollReceiver { rx: local_rx }.fuse() => {
                 let (id, msg) = msg?;
+
+                if msg.is::<CloseTransaction>() {
+                    println!("Closing thread {:?}", id);
+
+                    close_stream(id, &mut pool).await?;
+                }
 
                 println!("Received a message to send! Value: {:?}", msg);
                 println!("Sending on stream {:?}", id);
@@ -155,10 +160,6 @@ pub async fn process_connection(
                 };
 
                 println!("Finished sending a message! Message sent: {:?}", String::from_utf8_lossy(&message[..]));
-            }
-            close_id = PollReceiver { rx: &close_rx }.fuse() => {
-                println!("Closed stream {:?}!", close_id);
-                close_stream(close_id, &mut pool).await?;
             }
         }
     }
@@ -223,17 +224,17 @@ pub enum CloseStreamError {
     CloseChannelClosed(#[from] RecvError),
     #[error(transparent)]
     WriteError(#[from] WriteError),
+    #[error("stream does not exist")]
+    DoesNotExist,
 }
 
 async fn close_stream(
-    id: Result<StreamId, RecvError>,
+    id: StreamId,
     pool: &mut HashMap<StreamId, (SendStream, RecvStream)>,
 ) -> Result<(), CloseStreamError> {
-    let id = id?;
-
     let (mut send, _) = match pool.remove(&id) {
         Some(stream) => stream,
-        None => return Ok(()),
+        None => return Err(CloseStreamError::DoesNotExist),
     };
 
     send.finish().await?;
@@ -247,7 +248,6 @@ pub fn monitor_remote_thread<F: 'static + Future<Output = Result<(), RemoteThrea
         + Fn(
             Receiver<(StreamId, Box<dyn Message>)>,
             Sender<(StreamId, Box<dyn Message>)>,
-            Receiver<StreamId>,
             Arc<AtomicUsize>,
         ) -> F
         + Send

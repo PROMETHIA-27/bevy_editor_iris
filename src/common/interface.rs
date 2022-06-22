@@ -6,10 +6,11 @@ use std::sync::{
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
+use super::message::CloseTransaction;
+
 pub(crate) struct InternalInterface {
     pub(crate) incoming: Receiver<(StreamId, Box<dyn Message>)>,
     pub(crate) outgoing: Sender<(StreamId, Box<dyn Message>)>,
-    pub(crate) close_stream: Sender<StreamId>,
     pub(crate) stream_counter: Arc<AtomicUsize>,
 }
 
@@ -21,14 +22,12 @@ impl Interface {
     pub fn new(
         incoming: Receiver<(StreamId, Box<dyn Message>)>,
         outgoing: Sender<(StreamId, Box<dyn Message>)>,
-        close_stream: Sender<StreamId>,
         stream_counter: Arc<AtomicUsize>,
     ) -> Self {
         Self {
             inner: Arc::new(Mutex::new(InternalInterface {
                 outgoing,
                 incoming,
-                close_stream,
                 stream_counter,
             })),
         }
@@ -75,7 +74,7 @@ impl Interface {
 
     pub fn close(&self, id: StreamId) -> Result<(), InterfaceError> {
         match self.inner.lock() {
-            Ok(inner) => match inner.close_stream.send(id) {
+            Ok(inner) => match inner.outgoing.send((id, Box::new(CloseTransaction))) {
                 Ok(()) => Ok(()),
                 Err(_) => Err(InterfaceError::Disconnected),
             },

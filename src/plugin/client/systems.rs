@@ -10,7 +10,6 @@ use std::sync::{
 pub async fn run_client(
     local_rx: Receiver<(StreamId, Box<dyn Message>)>,
     remote_tx: Sender<(StreamId, Box<dyn Message>)>,
-    close_rx: Receiver<StreamId>,
     mut stream_counter: Arc<AtomicUsize>,
 ) -> Result<(), RemoteThreadError> {
     let endpoint = Endpoint::client(crate::client_addr())?;
@@ -23,7 +22,7 @@ pub async fn run_client(
 
     println!("Acquired connection to editor!");
 
-    process_connection(new, &local_rx, &remote_tx, &close_rx, &mut stream_counter).await?;
+    process_connection(new, &local_rx, &remote_tx, &mut stream_counter).await?;
 
     Ok(())
 }

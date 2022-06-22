@@ -27,6 +27,9 @@ pub struct ComponentQuery {
     pub entities: Vec<RemoteEntity>,
 }
 
+#[message]
+pub struct CloseTransaction;
+
 pub struct DefaultMessages;
 
 impl RegisterMessage for DefaultMessages {
@@ -35,5 +38,6 @@ impl RegisterMessage for DefaultMessages {
         EntityUpdate::register(app);
         ComponentResponse::register(app);
         ComponentQuery::register(app);
+        CloseTransaction::register(app);
     }
 }
