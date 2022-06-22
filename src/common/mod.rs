@@ -9,7 +9,7 @@ pub use interface::*;
 pub use stream_pool::*;
 
 pub use message::{
-    AppRegisterMsgExt, DefaultMessages, Is, Message, MessageDistributor, MessageReceived,
+    AppRegisterMsgExt, DefaultMessages, Message, MessageDistributor, MessageReceived,
     ReflectMessage, ReflectMessageFromReflect, RegisterMessage, SendMessage,
 };
 

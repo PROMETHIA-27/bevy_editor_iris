@@ -34,21 +34,6 @@ impl<T: Any> IntoAny for T {
     }
 }
 
-pub trait Is: IntoAny {
-    /// Returns `true` if the underlying value is of type `T`, or `false`
-    /// otherwise.
-    fn is<T: 'static>(&self) -> bool;
-}
-
-impl<T: ?Sized + IntoAny> Is for T {
-    /// Returns `true` if the underlying value is of type `T`, or `false`
-    /// otherwise.
-    #[inline]
-    fn is<U: 'static>(&self) -> bool {
-        self.as_any().is::<U>()
-    }
-}
-
 // TODO: This may end up in bevy alongside `Reflect`
 pub trait IntoReflect: Reflect {
     fn into_reflect(self: Box<Self>) -> Box<dyn Reflect>;
@@ -242,13 +227,13 @@ pub enum MessageDeserError {
     MessageNotImpl(String),
 }
 
-pub fn deserialize_message(buf: Vec<u8>) -> Result<Box<dyn Message>, MessageDeserError> {
+pub fn deserialize_message(buf: &[u8]) -> Result<Box<dyn Message>, MessageDeserError> {
     crate::common::with_type_registry(|reg| {
         let reg = reg.unwrap().read();
 
         let deser = bevy::reflect::serde::ReflectDeserializer::new(&reg);
 
-        let dynamic = serde_yaml::seed::from_slice_seed(&buf, deser)?;
+        let dynamic = serde_yaml::seed::from_slice_seed(buf, deser)?;
 
         let registration = reg
             .get_with_name(dynamic.type_name())

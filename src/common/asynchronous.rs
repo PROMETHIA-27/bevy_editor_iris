@@ -104,17 +104,11 @@ impl<T> Future for PollReceiver<'_, T> {
 #[derive(Debug, Error)]
 pub enum ProcessConnectionError {
     #[error(transparent)]
-    CloseStreamError(#[from] CloseStreamError),
-    #[error(transparent)]
-    ConnectionError(#[from] ConnectionError),
+    ProcessMessageError(#[from] ProcessMessageError),
     #[error(transparent)]
     ProcessStreamError(#[from] ProcessStreamError),
     #[error("interface closed")]
     RecvError(#[from] RecvError),
-    #[error(transparent)]
-    SerdeYamlError(#[from] serde_yaml::Error),
-    #[error(transparent)]
-    StreamWriteError(#[from] WriteError),
 }
 
 pub async fn process_connection(
@@ -124,42 +118,18 @@ pub async fn process_connection(
     stream_counter: &mut Arc<AtomicUsize>,
 ) -> Result<(), ProcessConnectionError> {
     let mut pool = HashMap::default();
+    let mut buffer = vec![0; 1024];
 
     loop {
         select! {
             stream = new.bi_streams.next().fuse() => {
                 println!("Received open stream!");
-                process_stream(stream, remote_tx, &mut pool, stream_counter).await?
+                process_stream(stream, remote_tx, &mut pool, stream_counter, &mut buffer).await?
             },
             msg = PollReceiver { rx: local_rx }.fuse() => {
                 let (id, msg) = msg?;
 
-                if msg.is::<CloseTransaction>() {
-                    println!("Closing thread {:?}", id);
-
-                    close_stream(id, &mut pool).await?;
-                }
-
-                println!("Received a message to send! Value: {:?}", msg);
-                println!("Sending on stream {:?}", id);
-
-                let bytes = message::serialize_message(msg)?;
-                let mut message = Vec::with_capacity(12 + bytes.len());
-                message.extend_from_slice(MAGIC);
-                message.extend_from_slice(&usize::to_le_bytes(bytes.len()));
-                message.extend_from_slice(&bytes[..]);
-
-                if let Some((send, _)) = pool.get_mut(&id) {
-                    send.write_all(&message[..]).await?;
-                } else {
-                    let (mut send, recv) = new.connection.open_bi().await?;
-
-                    send.write_all(&message[..]).await?;
-
-                    pool.insert(id, (send, recv));
-                };
-
-                println!("Finished sending a message! Message sent: {:?}", String::from_utf8_lossy(&message[..]));
+                process_message(id, msg, &new, &mut pool).await?
             }
         }
     }
@@ -186,6 +156,7 @@ async fn process_stream(
     remote_tx: &Sender<(StreamId, Box<dyn Message>)>,
     pool: &mut HashMap<StreamId, (SendStream, RecvStream)>,
     stream_counter: &mut Arc<AtomicUsize>,
+    buffer: &mut Vec<u8>,
 ) -> Result<(), ProcessStreamError> {
     let stream = stream.ok_or_else(|| ProcessStreamError::BiStreamsClosed)?;
     let (send, mut recv) = stream?;
@@ -199,13 +170,14 @@ async fn process_stream(
     }
 
     let len = usize::from_le_bytes(header[4..12].try_into().unwrap());
-    let mut buf = Vec::with_capacity(len);
-    _ = recv.read_exact(&mut buf).await?;
+    println!("Received message of length {}", len);
+    if len > buffer.len() {
+        buffer.append(&mut vec![0; len - buffer.len()]);
+    }
+    let buf = &mut buffer[..len];
 
-    println!(
-        "Read bytes! String value: {}",
-        String::from_utf8_lossy(&buf)
-    );
+    recv.read_exact(buf).await?;
+    println!("Read bytes! String value: {}", String::from_utf8_lossy(buf));
 
     let msg = message::deserialize_message(buf)?;
 
@@ -214,6 +186,57 @@ async fn process_stream(
     let stream_id = StreamId(stream_counter.fetch_add(1, Ordering::SeqCst));
     remote_tx.send((stream_id, msg))?;
     pool.insert(stream_id, (send, recv));
+
+    Ok(())
+}
+
+#[derive(Debug, Error)]
+pub enum ProcessMessageError {
+    #[error(transparent)]
+    CloseStreamError(#[from] CloseStreamError),
+    #[error(transparent)]
+    ConnectionError(#[from] ConnectionError),
+    #[error(transparent)]
+    SerdeYamlError(#[from] serde_yaml::Error),
+    #[error(transparent)]
+    StreamWriteError(#[from] WriteError),
+}
+
+async fn process_message(
+    id: StreamId,
+    msg: Box<dyn Message>,
+    new: &NewConnection,
+    pool: &mut HashMap<StreamId, (SendStream, RecvStream)>,
+) -> Result<(), ProcessMessageError> {
+    if msg.as_any().is::<CloseTransaction>() {
+        println!("Closing thread {:?}", id);
+
+        return Ok(close_stream(id, pool).await?);
+    }
+
+    println!("Received a message to send! Value: {:?}", msg);
+    println!("Sending on stream {:?}", id);
+
+    let bytes = message::serialize_message(msg)?;
+    let mut message = Vec::with_capacity(12 + bytes.len());
+    message.extend_from_slice(MAGIC);
+    message.extend_from_slice(&usize::to_le_bytes(bytes.len()));
+    message.extend_from_slice(&bytes[..]);
+
+    if let Some((send, _)) = pool.get_mut(&id) {
+        send.write_all(&message[..]).await?;
+    } else {
+        let (mut send, recv) = new.connection.open_bi().await?;
+
+        send.write_all(&message[..]).await?;
+
+        pool.insert(id, (send, recv));
+    };
+
+    println!(
+        "Finished sending a message! Message sent: {:?}",
+        String::from_utf8_lossy(&message[..])
+    );
 
     Ok(())
 }
