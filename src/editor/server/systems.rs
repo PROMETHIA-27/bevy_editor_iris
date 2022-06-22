@@ -41,7 +41,3 @@ pub fn update_entity_cache(
 ) {
     cache.extend(reader.iter().map(|up| &up.msg.entities).flatten());
 }
-
-pub fn keepalive(mut writer: ResMut<MessageWriter<Ping>>) {
-    writer.send(None, Ping);
-}
