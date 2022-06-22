@@ -1,5 +1,6 @@
 use crate::common::*;
 use bevy::{
+    ecs::event::Events,
     reflect::{GetTypeRegistration, TypeRegistry},
     utils::HashMap,
 };
@@ -135,10 +136,10 @@ fn distribute<M: Message>(id: StreamId, msg: Box<dyn Message>, world: &mut World
         .downcast::<M>()
         .expect("attempted to distribute invalid message");
 
-    let mut writer = world
-        .get_resource_mut::<EventWriter<MessageReceived<M>>>()
+    let mut events = world
+        .get_resource_mut::<Events<MessageReceived<M>>>()
         .unwrap();
-    writer.send(MessageReceived { id, msg });
+    events.send(MessageReceived { id, msg });
 }
 
 pub struct MessageWriter<M: Message> {
