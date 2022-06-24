@@ -112,64 +112,6 @@ impl<T: Message + Reflect> FromType<T> for ReflectMessage {
     }
 }
 
-pub trait ClientMessage: Reflect + Message {}
-
-impl std::fmt::Debug for dyn ClientMessage {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.as_any().fmt(f)
-    }
-}
-
-// TODO: This can be replaced entirely by #[reflect_trait] in bevy 0.8, I just need the `get_boxed` method which is absent in 0.7
-#[derive(Clone)]
-pub struct ReflectClientMessage {
-    get_func: fn(&dyn Reflect) -> Option<&dyn ClientMessage>,
-    get_mut_func: fn(&mut dyn Reflect) -> Option<&mut dyn ClientMessage>,
-    get_boxed_func: fn(Box<dyn Reflect>) -> Result<Box<dyn ClientMessage>, Box<dyn Reflect>>,
-}
-
-impl ReflectClientMessage {
-    pub fn get<'a>(&self, reflect_value: &'a dyn Reflect) -> Option<&'a dyn ClientMessage> {
-        (self.get_func)(reflect_value)
-    }
-
-    pub fn get_mut<'a>(
-        &self,
-        reflect_value: &'a mut dyn Reflect,
-    ) -> Option<&'a mut dyn ClientMessage> {
-        (self.get_mut_func)(reflect_value)
-    }
-
-    pub fn get_boxed(
-        &self,
-        reflect_value: Box<dyn Reflect>,
-    ) -> Result<Box<dyn ClientMessage>, Box<dyn Reflect>> {
-        (self.get_boxed_func)(reflect_value)
-    }
-}
-
-impl<T: ClientMessage + Reflect> FromType<T> for ReflectClientMessage {
-    fn from_type() -> Self {
-        Self {
-            get_func: |reflect_value| {
-                reflect_value
-                    .downcast_ref::<T>()
-                    .map(|value| value as &dyn ClientMessage)
-            },
-            get_mut_func: |reflect_value| {
-                reflect_value
-                    .downcast_mut::<T>()
-                    .map(|value| value as &mut dyn ClientMessage)
-            },
-            get_boxed_func: |reflect_value| {
-                reflect_value
-                    .downcast::<T>()
-                    .map(|value| value as Box<dyn ClientMessage>)
-            },
-        }
-    }
-}
-
 // TODO: This may be replaced in the future by something like `ReflectFromReflect`, but unfortunately for now this is necessary
 pub trait MessageFromReflect {
     fn from_reflect(&self, reflect: &dyn Reflect) -> Option<Box<Self>>;
