@@ -1,12 +1,13 @@
 use bevy::reflect::FromReflect;
 use bevy::{prelude::*, reflect::TypeRegistry};
 use serde::{de::DeserializeSeed, Deserialize, Serialize, Serializer};
-use std::cell::RefCell;
+use std::{cell::RefCell, hash::Hash};
 
-#[derive(Clone, Copy, Debug, Deserialize, FromReflect, Serialize, Reflect)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, FromReflect, Hash, PartialEq, Reflect, Serialize)]
+#[reflect(Hash, PartialEq)]
 pub struct RemoteEntity {
-    generation: u32,
-    id: u32,
+    pub(crate) generation: u32,
+    pub(crate) id: u32,
 }
 
 impl RemoteEntity {

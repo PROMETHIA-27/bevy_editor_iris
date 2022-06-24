@@ -12,7 +12,11 @@ pub struct TabPlugin;
 
 impl Plugin for TabPlugin {
     fn build(&self, app: &mut App) {
-        let registry = TabRegistry::new().push(InspectorTab::new()).take();
+        let mut registry = TabRegistry::new();
+
+        let mut inspector = InspectorTab::from_world(&mut app.world);
+        inspector.on_register(app);
+        registry.push(inspector);
 
         app.insert_resource(registry)
             .insert_resource(SelectedTab(TypeId::of::<InspectorTab>()));
@@ -22,7 +26,7 @@ impl Plugin for TabPlugin {
 #[derive(Reflect)]
 pub struct TabRegistration {
     #[reflect(ignore)]
-    tab: Box<dyn EditorTab + Send + Sync>,
+    tab: Box<dyn AnyTab + Send + Sync>,
     #[reflect(ignore)]
     ty_id: TypeId,
     ty_name: String,
@@ -74,12 +78,12 @@ impl TabRegistry {
 
     pub fn get<T: EditorTab>(&self) -> Option<&T> {
         let (_, reg) = self.registrations.get(&TypeId::of::<T>())?;
-        reg.tab.any().downcast_ref()
+        reg.tab.as_any().downcast_ref()
     }
 
     pub fn get_mut<T: EditorTab>(&mut self) -> Option<&mut T> {
         let (_, reg) = self.registrations.get_mut(&TypeId::of::<T>())?;
-        reg.tab.any_mut().downcast_mut()
+        reg.tab.as_mut_any().downcast_mut()
     }
 
     pub fn take(&mut self) -> Self {
@@ -94,34 +98,39 @@ where
     fn name(&self) -> egui::RichText;
 
     fn display(&mut self, ui: &mut egui::Ui);
+
+    fn on_register(&mut self, _app: &mut App) {}
+}
+
+trait AnyTab: EditorTab {
+    fn as_any(&self) -> &dyn Any;
+
+    fn as_mut_any(&mut self) -> &mut dyn Any;
+}
+
+impl<T: EditorTab> AnyTab for T {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_mut_any(&mut self) -> &mut dyn Any {
+        self
+    }
 }
 
 trait IntoTabRegistration
 where
     Self: Sized + EditorTab,
 {
+    fn get_registration(self) -> TabRegistration;
+}
+
+impl<T: EditorTab> IntoTabRegistration for T {
     fn get_registration(self) -> TabRegistration {
         TabRegistration {
             tab: Box::new(self),
             ty_id: TypeId::of::<Self>(),
             ty_name: type_name::<Self>().into(),
         }
-    }
-}
-impl<T: EditorTab> IntoTabRegistration for T {}
-
-pub trait IntoAny {
-    fn any(&self) -> &dyn Any;
-
-    fn any_mut(&mut self) -> &mut dyn Any;
-}
-
-impl<T: Any> IntoAny for T {
-    fn any(&self) -> &dyn Any {
-        self
-    }
-
-    fn any_mut(&mut self) -> &mut dyn Any {
-        self
     }
 }

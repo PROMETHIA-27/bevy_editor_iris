@@ -9,7 +9,7 @@ use systems::*;
 mod resources;
 mod systems;
 
-pub use resources::{EntityCache, QueryComponentError};
+pub use resources::EntityCache;
 
 pub struct ServerPlugin;
 

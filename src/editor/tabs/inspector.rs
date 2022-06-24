@@ -1,19 +1,21 @@
-use super::*;
-use crate::common::RemoteEntity;
+use crate::{
+    common::RemoteEntity,
+    editor::{server::EntityCache, tabs::EditorTab},
+};
+use bevy::prelude::*;
+use bevy_egui::egui;
 
-#[derive(Default)]
 pub struct InspectorTab {
     selected_entity: Option<RemoteEntity>,
-    entity_list: Vec<RemoteEntity>,
-    entity_names: Vec<Option<String>>,
+    entities: EntityCache,
 }
 
-impl InspectorTab {
-    pub fn new() -> Self {
-        InspectorTab {
+impl FromWorld for InspectorTab {
+    fn from_world(world: &mut World) -> Self {
+        let cache = world.get_resource::<EntityCache>().unwrap();
+        Self {
             selected_entity: None,
-            entity_list: vec![],
-            entity_names: vec![],
+            entities: cache.clone(),
         }
     }
 }
@@ -25,14 +27,11 @@ impl EditorTab for InspectorTab {
 
     fn display(&mut self, ui: &mut egui::Ui) {
         egui::SidePanel::left("Entity List").show(ui.ctx(), |ui| {
-            for (index, entity) in self.entity_list.iter().enumerate() {
+            let cache = self.entities.read().unwrap();
+            for (entity, name) in cache.iter() {
+                let selected = self.selected_entity == Some(*entity);
                 if ui
-                    .selectable_label(
-                        false,
-                        self.entity_names[index]
-                            .as_ref()
-                            .unwrap_or(&entity.to_string()),
-                    )
+                    .selectable_label(selected, name.as_ref().unwrap_or(&entity.to_string()))
                     .clicked()
                 {
                     self.selected_entity.replace(*entity);

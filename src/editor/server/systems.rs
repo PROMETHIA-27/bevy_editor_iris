@@ -4,7 +4,7 @@ use crate::{
     editor::server::{generate_self_signed_cert, server_config},
     server_addr,
 };
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashMap};
 use futures_util::StreamExt;
 use quinn::Endpoint;
 use std::sync::mpsc::{Receiver, Sender};
@@ -35,9 +35,23 @@ pub async fn run_server(
     Ok(())
 }
 
-pub fn update_entity_cache(
-    mut cache: ResMut<EntityCache>,
+pub(crate) fn update_entity_cache(
+    cache: Res<EntityCache>,
     mut reader: EventReader<MessageReceived<EntityUpdate>>,
+    mut entities: Local<HashMap<RemoteEntity, Option<String>>>,
 ) {
-    cache.extend(reader.iter().map(|up| &up.msg.entities).flatten());
+    let mut cache = cache.write().unwrap();
+    for update in reader.iter() {
+        entities.clear();
+        entities.extend(update.msg.entities.iter().cloned());
+        if update.msg.destroyed {
+            cache.retain(|entity, _| !entities.contains_key(entity));
+        } else {
+            cache.extend(
+                entities
+                    .iter()
+                    .map(|(&entity, name)| (entity, name.clone())),
+            );
+        }
+    }
 }
