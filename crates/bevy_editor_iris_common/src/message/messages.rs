@@ -1,7 +1,7 @@
 use bevy::prelude::{App, Reflect};
 use bevy::reflect::FromReflect;
 use bevy::utils::HashMap;
-use bevy_editor_iris_common::{message, Message};
+use bevy_editor_iris_derive::{message, Message};
 
 use crate::message::{Message, ReflectMessage, ReflectMessageFromReflect, RegisterMessage};
 use crate::serde::{ReflectObject, RemoteEntity};
