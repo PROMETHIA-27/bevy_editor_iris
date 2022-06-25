@@ -1,7 +1,6 @@
 use std::sync::mpsc::{Receiver, Sender};
 
-use ouroboros_common::asynchronous;
-use ouroboros_common::asynchronous::RemoteThreadError;
+use ouroboros_common::asynchronous::{self, RemoteThreadError};
 use ouroboros_common::quinn::Endpoint;
 use ouroboros_common::{Message, StreamCounter, StreamId};
 

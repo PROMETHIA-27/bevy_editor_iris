@@ -1,5 +1,4 @@
-use std::any;
-use std::any::{Any, TypeId};
+use std::any::{self, Any, TypeId};
 
 use bevy_egui::egui;
 use ouroboros_common::bevy::prelude::{default, App, FromWorld, Plugin};

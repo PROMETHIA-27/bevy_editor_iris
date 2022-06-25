@@ -2,8 +2,7 @@ use std::{sync::Arc, time::Duration};
 
 use ouroboros_common::bevy::prelude::{App, CoreStage, Plugin};
 use ouroboros_common::quinn::{ServerConfig, TransportConfig};
-use ouroboros_common::rcgen;
-use ouroboros_common::rcgen::RcgenError;
+use ouroboros_common::rcgen::{self, RcgenError};
 use ouroboros_common::rustls::{Certificate, Error, PrivateKey};
 use ouroboros_common::CommonPlugin;
 

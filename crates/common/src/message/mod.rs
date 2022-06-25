@@ -1,9 +1,6 @@
 use std::any::Any;
 
-use bevy::{
-    prelude::*,
-    reflect::{FromReflect, FromType},
-};
+use bevy::reflect::{FromReflect, FromType, Reflect};
 use thiserror::Error;
 
 use crate::serde;

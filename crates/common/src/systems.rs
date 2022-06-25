@@ -4,8 +4,7 @@ use bevy::ecs::schedule::ShouldRun;
 use bevy::prelude::{Res, Time, World};
 use futures_util::Future;
 
-use crate::asynchronous;
-use crate::asynchronous::{RemoteThread, RemoteThreadError};
+use crate::asynchronous::{self, RemoteThread, RemoteThreadError};
 use crate::interface::StreamCounter;
 use crate::{Interface, Message, StreamId};
 

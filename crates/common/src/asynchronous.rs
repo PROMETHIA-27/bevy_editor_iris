@@ -1,6 +1,5 @@
 use std::pin::Pin;
-use std::sync::mpsc;
-use std::sync::mpsc::{Receiver, RecvError, SendError, Sender, TryRecvError};
+use std::sync::mpsc::{self, Receiver, RecvError, SendError, Sender, TryRecvError};
 use std::task::{Context, Poll};
 use std::thread::JoinHandle;
 
@@ -15,8 +14,7 @@ use rcgen::RcgenError;
 use thiserror::Error;
 
 use crate::interface::StreamCounter;
-use crate::message;
-use crate::message::{CloseTransaction, MessageDeserError};
+use crate::message::{self, CloseTransaction, MessageDeserError};
 use crate::serde;
 use crate::{Interface, Message, StreamId};
 
