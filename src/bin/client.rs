@@ -1,10 +1,10 @@
-use ::bevy_mod_ouroboros::prelude::*;
+use ::bevy_editor_iris::prelude::*;
 use bevy::prelude::*;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugin(OuroborosClientPlugin)
+        .add_plugin(IrisClientPlugin)
         .add_startup_system(setup)
         .run()
 }

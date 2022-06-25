@@ -1,4 +1,4 @@
-# bevy_mod_ouroboros
+# bevy_editor_iris
 
 An experiment towards a networked editor for Bevy Engine. 
 Currently not functional as an editor.

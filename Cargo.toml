@@ -1,21 +1,25 @@
 [package]
-name = "bevy_mod_ouroboros"
+name = "bevy_editor_iris"
 version = "0.1.1"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies.bevy_mod_ouroboros_derive]
-path = "crates/bevy_mod_ouroboros_derive"
+[dependencies.bevy_editor_iris_derive]
+# path = "crates/bevy_editor_iris_common"
+version = "0.1.0"
 
-[dependencies.ouroboros_common]
-path = "crates/common"
+[dependencies.bevy_editor_iris_common]
+# path = "crates/bevy_editor_iris_common"
+version = "0.1.0"
 
-[dependencies.ouroboros_editor]
-path = "crates/editor"
+[dependencies.bevy_editor_iris_editor]
+# path = "crates/bevy_editor_iris_editor"
+version = "0.1.0"
 
-[dependencies.ouroboros_plugin]
-path = "crates/plugin"
+[dependencies.bevy_editor_iris_plugin]
+# path = "crates/bevy_editor_iris_plugin"
+version = "0.1.0"
 
 [dependencies]
 bevy = "0.7"
