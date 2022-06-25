@@ -1,4 +1,5 @@
 use std::sync::mpsc::{Receiver, Sender};
+use std::time::Duration;
 
 use bevy::ecs::schedule::ShouldRun;
 use bevy::prelude::{Res, Time, World};
@@ -8,19 +9,19 @@ use crate::asynchronous::{self, RemoteThread, RemoteThreadError};
 use crate::interface::StreamCounter;
 use crate::{Interface, Message, StreamId};
 
-pub fn run_on_timer(duration: f32) -> impl FnMut(Res<Time>) -> ShouldRun {
+pub fn run_on_timer(duration: Duration) -> impl FnMut(Res<Time>) -> ShouldRun {
     struct Timer {
-        duration: f32,
-        elapsed: f32,
+        duration: Duration,
+        elapsed: Duration,
     }
 
     let mut timer = Timer {
         duration,
-        elapsed: 0.0,
+        elapsed: Duration::ZERO,
     };
 
     move |time: Res<Time>| {
-        timer.elapsed += time.delta_seconds();
+        timer.elapsed += time.delta();
 
         if timer.elapsed > timer.duration {
             timer.elapsed = timer.elapsed - timer.duration;

@@ -6,7 +6,6 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugin(OuroborosClientPlugin)
         .add_startup_system(setup)
-        .add_system(bevy_mod_ouroboros::common::message::what_changed.exclusive_system())
         .run()
 }
 

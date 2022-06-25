@@ -90,7 +90,13 @@ struct PollReceiver<'rx, T> {
 impl<T> Future for PollReceiver<'_, T> {
     type Output = Result<T, RecvError>;
 
-    fn poll(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Self::Output> {
+        // TODO: This is inefficient and a big waste of processing power.
+        // Switch to tokio's mpsc to send messages to the remote thread,
+        // and switch to tokio's broadcast to send messages to the local thread.
+        // Questions for doing that; channels are not sync, but they are send.
+        // How to give each system a local receiver/sender?
+        ctx.waker().wake_by_ref();
         match self.rx.try_recv() {
             Ok(msg) => Poll::Ready(Ok(msg)),
             Err(TryRecvError::Disconnected) => Poll::Ready(Err(RecvError)),

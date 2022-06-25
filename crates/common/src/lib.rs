@@ -1,5 +1,8 @@
+use std::borrow::Cow;
 use std::sync::mpsc::{Receiver, Sender};
+use std::time::Duration;
 
+use bevy::math::Vec3A;
 use bevy::prelude::{IntoExclusiveSystem, Plugin, SystemSet};
 use futures_util::Future;
 
@@ -57,13 +60,15 @@ impl<
             .add_startup_system(asynchronous::open_remote_thread(self.0).exclusive_system())
             .add_system_set(
                 SystemSet::new()
-                    .with_run_criteria(systems::run_on_timer(1.0))
+                    .with_run_criteria(systems::run_on_timer(Duration::from_secs(1)))
                     .with_system(systems::monitor_remote_thread(self.0).exclusive_system()),
             )
             .add_distributor()
             .add_messages::<DefaultMessages>()
             .add_system(distributor::distribute_messages.exclusive_system())
-            .add_system(distributor::collect_messages.exclusive_system());
+            .add_system(distributor::collect_messages.exclusive_system())
+            .register_type::<Cow<'static, str>>()
+            .register_type::<Vec3A>();
     }
 }
 
