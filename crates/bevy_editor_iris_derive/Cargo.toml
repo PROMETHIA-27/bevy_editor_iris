@@ -1,5 +1,7 @@
 [package]
 name = "bevy_editor_iris_derive"
+description = "Macros for bevy_editor_iris"
+license = "MIT OR Apache-2.0"
 version = "0.1.0"
 edition = "2021"
 
