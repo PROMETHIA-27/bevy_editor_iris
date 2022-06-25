@@ -6,8 +6,9 @@ use ouroboros_common::bevy::utils::HashMap;
 use ouroboros_common::futures_util::StreamExt;
 use ouroboros_common::message::EntityUpdate;
 use ouroboros_common::quinn::Endpoint;
-use ouroboros_common::{asynchronous, MessageReceived, RemoteEntity};
-use ouroboros_common::{Message, StreamCounter, StreamId};
+use ouroboros_common::{
+    asynchronous, Message, MessageReceived, RemoteEntity, StreamCounter, StreamId,
+};
 
 use crate::server;
 
