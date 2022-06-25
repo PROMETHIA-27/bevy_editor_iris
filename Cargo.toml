@@ -8,17 +8,17 @@ edition = "2021"
 [dependencies.bevy_mod_ouroboros_derive]
 path = "crates/bevy_mod_ouroboros_derive"
 
+[dependencies.ouroboros_common]
+path = "crates/common"
+
+[dependencies.ouroboros_editor]
+path = "crates/editor"
+
+[dependencies.ouroboros_plugin]
+path = "crates/plugin"
+
 [dependencies]
 bevy = "0.7"
-bevy_egui = "0.14.0"
-futures-util = "0.3.21"
-quinn = "0.8.3"
-rcgen = "0.9.2"
-rustls = "0.20.6"
-serde = "1.0.137"
-serde_yaml = "0.8.24"
-thiserror = "1.0.31"
-tokio = { version = "1.19.2", features = ["sync"] }
 
 [profile.dev]
 opt-level = 1
