@@ -6,7 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies.bevy_editor_iris_common]
-path = "../bevy_editor_iris_common"
+# path = "../bevy_editor_iris_common"
+version = "0.1"
 
 [dependencies]
 bevy_egui = "0.14.0"

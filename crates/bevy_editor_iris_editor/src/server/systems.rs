@@ -46,14 +46,14 @@ pub(crate) fn apply_scene_diff(
     mut reader: EventReader<MessageReceived<SceneDiff>>,
 ) {
     let mut cache = cache.write().unwrap();
-    for diff in reader.iter() {
-        for (entity, components) in diff.msg.changes.iter() {
-            match cache.get_mut(entity) {
-                Some(entity_comps) => entity_comps.extend(components.iter().cloned()),
-            }
-        }
-        cache.extend(diff.msg.changes.iter().cloned());
-    }
+    // for diff in reader.iter() {
+    //     for (entity, components) in diff.msg.changes.iter() {
+    //         match cache.get_mut(entity) {
+    //             Some(entity_comps) => entity_comps.extend(components.iter().cloned()),
+    //         }
+    //     }
+    //     cache.extend(diff.msg.changes.iter().cloned());
+    // }
 }
 
 pub(crate) fn update_entity_cache(
@@ -67,7 +67,7 @@ pub(crate) fn update_entity_cache(
         if update.msg.destroyed {
             cache.retain(|entity, _| !entities.contains_key(entity));
         } else {
-            cache.extend(entities.drain());
+            // cache.extend(entities.drain());
         }
     }
 }

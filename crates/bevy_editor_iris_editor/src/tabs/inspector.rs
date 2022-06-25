@@ -1,6 +1,6 @@
-use bevy_egui::egui;
 use bevy_editor_iris_common::bevy::prelude::{FromWorld, World};
 use bevy_editor_iris_common::RemoteEntity;
+use bevy_egui::egui;
 
 use crate::{server::EntityCache, tabs::EditorTab};
 
@@ -25,17 +25,17 @@ impl EditorTab for InspectorTab {
     }
 
     fn display(&mut self, ui: &mut egui::Ui) {
-        egui::SidePanel::left("Entity List").show(ui.ctx(), |ui| {
-            let cache = self.entities.read().unwrap();
-            for (entity, name) in cache.iter() {
-                let selected = self.selected_entity == Some(*entity);
-                if ui
-                    .selectable_label(selected, name.as_ref().unwrap_or(&entity.to_string()))
-                    .clicked()
-                {
-                    self.selected_entity.replace(*entity);
-                }
-            }
-        });
+        // egui::SidePanel::left("Entity List").show(ui.ctx(), |ui| {
+        //     let cache = self.entities.read().unwrap();
+        //     for (entity, name) in cache.iter() {
+        //         let selected = self.selected_entity == Some(*entity);
+        //         if ui
+        //             .selectable_label(selected, name.as_ref().unwrap_or(&entity.to_string()))
+        //             .clicked()
+        //         {
+        //             self.selected_entity.replace(*entity);
+        //         }
+        //     }
+        // });
     }
 }
