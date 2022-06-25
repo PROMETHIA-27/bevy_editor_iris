@@ -4,10 +4,10 @@ use ouroboros_common::asynchronous::RemoteThreadError;
 use ouroboros_common::bevy::prelude::{EventReader, Local, Res};
 use ouroboros_common::bevy::utils::HashMap;
 use ouroboros_common::futures_util::StreamExt;
-use ouroboros_common::message::EntityUpdate;
+use ouroboros_common::message::{EntityUpdate, SceneDiff};
 use ouroboros_common::quinn::Endpoint;
 use ouroboros_common::{
-    asynchronous, Message, MessageReceived, RemoteEntity, StreamCounter, StreamId,
+    asynchronous, Message, MessageReceived, ReflectObject, RemoteEntity, StreamCounter, StreamId,
 };
 
 use crate::server;
@@ -41,6 +41,21 @@ pub async fn run_server(
     Ok(())
 }
 
+pub(crate) fn apply_scene_diff(
+    cache: Res<EntityCache>,
+    mut reader: EventReader<MessageReceived<SceneDiff>>,
+) {
+    let mut cache = cache.write().unwrap();
+    for diff in reader.iter() {
+        for (entity, components) in diff.msg.changes.iter() {
+            match cache.get_mut(entity) {
+                Some(entity_comps) => entity_comps.extend(components.iter().cloned()),
+            }
+        }
+        cache.extend(diff.msg.changes.iter().cloned());
+    }
+}
+
 pub(crate) fn update_entity_cache(
     cache: Res<EntityCache>,
     mut reader: EventReader<MessageReceived<EntityUpdate>>,
@@ -48,16 +63,11 @@ pub(crate) fn update_entity_cache(
 ) {
     let mut cache = cache.write().unwrap();
     for update in reader.iter() {
-        entities.clear();
         entities.extend(update.msg.entities.iter().cloned());
         if update.msg.destroyed {
             cache.retain(|entity, _| !entities.contains_key(entity));
         } else {
-            cache.extend(
-                entities
-                    .iter()
-                    .map(|(&entity, name)| (entity, name.clone())),
-            );
+            cache.extend(entities.drain());
         }
     }
 }

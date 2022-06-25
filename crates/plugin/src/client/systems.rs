@@ -9,7 +9,6 @@ use ouroboros_common::bevy::prelude::{
     Component, Deref, DerefMut, Entity, ReflectComponent, World,
 };
 use ouroboros_common::bevy::reflect::TypeRegistry;
-use ouroboros_common::bevy::render::camera::Camera3d;
 use ouroboros_common::bevy::render::primitives::{CubemapFrusta, Frustum};
 use ouroboros_common::bevy::render::view::VisibleEntities;
 use ouroboros_common::bevy::utils::{HashMap, HashSet};
@@ -197,9 +196,9 @@ pub fn send_scene_diff(world: &mut World) {
 pub fn build_denylist(world: &mut World) {
     let mut denylist = SceneDiffDenylist::default();
 
-    // NOTE: ZSTs should not be denied. They should only be changed 
+    // NOTE: ZSTs should not be denied. They should only be changed
     // when added or removed, and so should not cause any unnecessary noise.
-    // Types which only contain ignored fields, however, should be denied, 
+    // Types which only contain ignored fields, however, should be denied,
     // as they may change frequently without yielding usable data.
     denylist.deny::<CubemapVisibleEntities>(world).unwrap();
     denylist.deny::<VisibleEntities>(world).unwrap();
