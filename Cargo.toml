@@ -1,5 +1,7 @@
 [package]
 name = "bevy_editor_iris"
+description = "A networked editor for bevy engine"
+license = "MIT OR Apache-2.0"
 version = "0.1.1"
 edition = "2021"
 
@@ -10,16 +12,16 @@ edition = "2021"
 version = "0.1.0"
 
 [dependencies.bevy_editor_iris_common]
-path = "crates/bevy_editor_iris_common"
-# version = "0.1.0"
+# path = "crates/bevy_editor_iris_common"
+version = "0.1.0"
 
 [dependencies.bevy_editor_iris_editor]
-path = "crates/bevy_editor_iris_editor"
-# version = "0.1.0"
+# path = "crates/bevy_editor_iris_editor"
+version = "0.1.0"
 
 [dependencies.bevy_editor_iris_plugin]
-path = "crates/bevy_editor_iris_plugin"
-# version = "0.1.0"
+# path = "crates/bevy_editor_iris_plugin"
+version = "0.1.0"
 
 [dependencies]
 bevy = "0.7"
