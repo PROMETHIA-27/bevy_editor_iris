@@ -1,11 +1,14 @@
 [package]
 name = "bevy_editor_iris_plugin"
+description = "Plugin logic for bevy_editor_iris"
+license = "MIT OR Apache-2.0"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies.bevy_editor_iris_common]
-path = "../bevy_editor_iris_common"
+# path = "../bevy_editor_iris_common"
+version = "0.1"
 
 [dependencies]
