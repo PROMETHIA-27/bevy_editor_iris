@@ -7,20 +7,14 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies.bevy_editor_iris_derive]
-# path = "crates/bevy_editor_iris_common"
+[dependencies.editor]
+path = "crates/bevy_editor_iris_editor"
+package = "bevy_editor_iris_editor"
 version = "0.1.0"
 
-[dependencies.bevy_editor_iris_common]
-# path = "crates/bevy_editor_iris_common"
-version = "0.1.0"
-
-[dependencies.bevy_editor_iris_editor]
-# path = "crates/bevy_editor_iris_editor"
-version = "0.1.0"
-
-[dependencies.bevy_editor_iris_plugin]
-# path = "crates/bevy_editor_iris_plugin"
+[dependencies.plugin]
+path = "crates/bevy_editor_iris_plugin"
+package = "bevy_editor_iris_plugin"
 version = "0.1.0"
 
 [dependencies]

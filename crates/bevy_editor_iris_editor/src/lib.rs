@@ -1,5 +1,5 @@
-use bevy_editor_iris_common::bevy::prelude::{App, Plugin};
-use bevy_editor_iris_common::bevy::DefaultPlugins;
+use common::deps::bevy::prelude::{App, Plugin};
+use common::deps::bevy::DefaultPlugins;
 use server::ServerPlugin;
 use tabs::TabPlugin;
 use ui::UiPlugin;
@@ -7,6 +7,11 @@ use ui::UiPlugin;
 pub mod server;
 pub mod tabs;
 pub mod ui;
+
+pub mod deps {
+    pub use bevy_egui;
+    pub use common;
+}
 
 /// The entry point for the Iris editor application.
 ///

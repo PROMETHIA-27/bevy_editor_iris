@@ -1,10 +1,10 @@
 use std::{sync::Arc, time::Duration};
 
-use bevy_editor_iris_common::bevy::prelude::{App, CoreStage, Plugin};
-use bevy_editor_iris_common::quinn::{ServerConfig, TransportConfig};
-use bevy_editor_iris_common::rcgen::{self, RcgenError};
-use bevy_editor_iris_common::rustls::{Certificate, Error, PrivateKey};
-use bevy_editor_iris_common::CommonPlugin;
+use common::deps::bevy::prelude::{App, CoreStage, Plugin};
+use common::deps::quinn::{ServerConfig, TransportConfig};
+use common::deps::rcgen::{self, RcgenError};
+use common::deps::rustls::{Certificate, Error, PrivateKey};
+use common::CommonPlugin;
 
 pub use self::resources::EntityCache;
 
@@ -17,7 +17,8 @@ impl Plugin for ServerPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(CommonPlugin(systems::run_server))
             .insert_resource(resources::EntityCache::default())
-            .add_system_to_stage(CoreStage::PreUpdate, systems::update_entity_cache);
+            .add_system_to_stage(CoreStage::PreUpdate, systems::update_entity_cache)
+            .add_system_to_stage(CoreStage::PreUpdate, systems::apply_scene_diff);
     }
 }
 

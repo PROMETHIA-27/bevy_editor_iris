@@ -1,3 +1,4 @@
+use std::borrow::{Borrow, BorrowMut};
 use std::cell::RefCell;
 use std::hash::Hash;
 
@@ -6,24 +7,29 @@ use bevy::reflect::{FromReflect, Reflect, TypeRegistry};
 use serde::de::DeserializeSeed;
 use serde::{Deserialize, Serialize, Serializer};
 
+/// A serializable representation of an entity in the client, for use in the editor.
+/// This prevents confusion with whether an entity represents an entity in the editor or
+/// one in the client.
+///
+/// A `RemoteEntity` can be constructed from an [`Entity`] with [`Into`], but not the other
+/// way around.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, FromReflect, Hash, PartialEq, Reflect, Serialize)]
 #[reflect(Hash, PartialEq)]
 pub struct RemoteEntity {
-    pub(crate) generation: u32,
-    pub(crate) id: u32,
+    pub(crate) bits: u64,
 }
 
 impl RemoteEntity {
+    /// Converts the entity to a string, for example "3v6"
     pub fn to_string(&self) -> String {
-        format!("{}v{}", self.id, self.generation)
+        format!("Entity(0x{:#x})", self.bits)
     }
 }
 
 impl From<Entity> for RemoteEntity {
     fn from(entity: Entity) -> Self {
         RemoteEntity {
-            generation: entity.generation(),
-            id: entity.id(),
+            bits: entity.to_bits(),
         }
     }
 }
@@ -31,6 +37,8 @@ impl From<Entity> for RemoteEntity {
 // TODO: There should be a built-in solution to this in bevy in the future. 6/10/2022
 thread_local!(static TYPE_REGISTRY: RefCell<Option<TypeRegistry>> = default());
 
+/// Runs a closure with the given type registry available in thread local storage.
+/// Useful for de/serializing [`ReflectObject`].
 pub fn with_type_registry_context<F: FnOnce() -> R, R>(
     registry: TypeRegistry,
     f: F,
@@ -49,22 +57,42 @@ pub fn with_type_registry_context<F: FnOnce() -> R, R>(
     (registry, r)
 }
 
+/// Runs a closure, giving it the type registry in thread local storage.
+/// Combine with [`replace_type_registry`] and [`take_type_registry`].
 pub fn with_type_registry<F: FnOnce(Option<&TypeRegistry>) -> R, R>(f: F) -> R {
     TYPE_REGISTRY.with(|registry| f(registry.borrow().as_ref()))
 }
 
+/// Swaps the type registry in thread local storage with the given registry.
+/// Useful for setting up a call to [`with_type_registry`].
 pub fn replace_type_registry(registry: TypeRegistry) -> Option<TypeRegistry> {
     TYPE_REGISTRY.with(|cell| cell.borrow_mut().replace(registry))
 }
 
+/// Takes the type regsitry from thread local storage.
+/// Useful for retrieving the type registry after a call to [`with_type_registry`].
 pub fn take_type_registry() -> Option<TypeRegistry> {
     TYPE_REGISTRY.with(|cell| cell.take())
 }
 
 // TODO: There should be a native solution to this in bevy in the future, and ReflectObject can be entirely removed.
 // 6/17/2022
+/// Represents a serializable reflected object. Usually the underlying type is a `Dynamic***` type, but
+/// represents a type which may or may not be available in the editor.
 #[derive(Debug)]
 pub struct ReflectObject(Box<dyn Reflect>);
+
+impl Borrow<dyn Reflect> for ReflectObject {
+    fn borrow(&self) -> &dyn Reflect {
+        &*self.0
+    }
+}
+
+impl BorrowMut<dyn Reflect> for ReflectObject {
+    fn borrow_mut(&mut self) -> &mut dyn Reflect {
+        &mut *self.0
+    }
+}
 
 unsafe impl Reflect for ReflectObject {
     fn type_name(&self) -> &str {
@@ -117,6 +145,12 @@ unsafe impl Reflect for ReflectObject {
 impl FromReflect for ReflectObject {
     fn from_reflect(reflect: &dyn Reflect) -> Option<Self> {
         Some(Self(reflect.clone_value()))
+    }
+}
+
+impl Clone for ReflectObject {
+    fn clone(&self) -> Self {
+        self.clone_value().into()
     }
 }
 

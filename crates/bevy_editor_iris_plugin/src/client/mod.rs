@@ -1,13 +1,15 @@
 use std::fs;
 use std::time::Duration;
 
-use bevy_editor_iris_common::bevy::prelude::{
-    App, CoreStage, IntoExclusiveSystem, Plugin, StartupStage, SystemSet,
+use common::deps::bevy::ecs as bevy_ecs;
+use common::deps::bevy::prelude::{
+    App, CoreStage, ExclusiveSystemDescriptorCoercion, IntoExclusiveSystem, Plugin, StartupStage,
+    SystemLabel, SystemSet,
 };
-use bevy_editor_iris_common::quinn::ClientConfig;
-use bevy_editor_iris_common::rustls::{Certificate, RootCertStore};
-use bevy_editor_iris_common::systems as common_systems;
-use bevy_editor_iris_common::CommonPlugin;
+use common::deps::quinn::ClientConfig;
+use common::deps::rustls::{Certificate, RootCertStore};
+use common::systems as common_systems;
+use common::CommonPlugin;
 
 pub use self::interface::ClientInterfaceExt;
 pub use self::systems::SceneDiffDenylist;
@@ -28,10 +30,15 @@ impl Plugin for ClientPlugin {
             )
             .add_startup_system_to_stage(
                 StartupStage::PostStartup,
-                systems::build_denylist.exclusive_system(),
+                systems::build_denylist
+                    .exclusive_system()
+                    .label(BuildDenylist),
             );
     }
 }
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq, SystemLabel)]
+pub struct BuildDenylist;
 
 fn client_config() -> ClientConfig {
     let cert = Certificate(fs::read("certificate.der").unwrap());

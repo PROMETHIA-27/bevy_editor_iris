@@ -1,20 +1,20 @@
 use std::any::TypeId;
 use std::sync::mpsc::{Receiver, Sender};
 
-use bevy_editor_iris_common::asynchronous::{self, RemoteThreadError};
-use bevy_editor_iris_common::bevy::ecs::archetype::ArchetypeId;
-use bevy_editor_iris_common::bevy::ecs::component::{ComponentId, ComponentTicks, StorageType};
-use bevy_editor_iris_common::bevy::pbr::CubemapVisibleEntities;
-use bevy_editor_iris_common::bevy::prelude::{
-    Component, Deref, DerefMut, Entity, ReflectComponent, World,
-};
-use bevy_editor_iris_common::bevy::reflect::TypeRegistry;
-use bevy_editor_iris_common::bevy::render::primitives::{CubemapFrusta, Frustum};
-use bevy_editor_iris_common::bevy::render::view::VisibleEntities;
-use bevy_editor_iris_common::bevy::utils::{HashMap, HashSet};
-use bevy_editor_iris_common::message::SceneDiff;
-use bevy_editor_iris_common::quinn::Endpoint;
-use bevy_editor_iris_common::{Interface, Message, ReflectObject, StreamCounter, StreamId};
+use common::asynchronous::{self, RemoteThreadError};
+use common::deps::bevy::ecs::archetype::ArchetypeId;
+use common::deps::bevy::ecs::component::{ComponentId, ComponentTicks, StorageType};
+use common::deps::bevy::pbr::CubemapVisibleEntities;
+use common::deps::bevy::prelude::{Component, Deref, DerefMut, Entity, ReflectComponent, World};
+use common::deps::bevy::reflect::TypeRegistry;
+use common::deps::bevy::render::primitives::{CubemapFrusta, Frustum};
+use common::deps::bevy::render::view::VisibleEntities;
+use common::deps::bevy::utils::{HashMap, HashSet};
+use common::deps::quinn::Endpoint;
+use common::interface::{Interface, StreamCounter, StreamId};
+use common::message::messages::SceneDiff;
+use common::message::Message;
+use common::serde::ReflectObject;
 
 use super::client_config;
 
@@ -23,16 +23,12 @@ pub async fn run_client(
     remote_tx: Sender<(StreamId, Box<dyn Message>)>,
     mut stream_counter: StreamCounter,
 ) -> Result<(), RemoteThreadError> {
-    let endpoint = Endpoint::client(bevy_editor_iris_common::client_addr())?;
+    let endpoint = Endpoint::client(common::client_addr())?;
 
     println!("Attempting connection!");
 
     let new = endpoint
-        .connect_with(
-            client_config(),
-            bevy_editor_iris_common::server_addr(),
-            "localhost",
-        )?
+        .connect_with(client_config(), common::server_addr(), "localhost")?
         .await?;
 
     println!("Acquired connection to editor!");
@@ -195,7 +191,6 @@ pub fn send_scene_diff(world: &mut World) {
 
 pub fn build_denylist(world: &mut World) {
     let mut denylist = SceneDiffDenylist::default();
-
     // NOTE: ZSTs should not be denied. They should only be changed
     // when added or removed, and so should not cause any unnecessary noise.
     // Types which only contain ignored fields, however, should be denied,

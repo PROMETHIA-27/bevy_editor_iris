@@ -1,9 +1,9 @@
 use std::any::{self, Any, TypeId};
 
 use bevy_egui::egui;
-use bevy_editor_iris_common::bevy::prelude::{default, App, FromWorld, Plugin};
-use bevy_editor_iris_common::bevy::reflect::{self as bevy_reflect, Reflect};
-use bevy_editor_iris_common::bevy::utils::HashMap;
+use common::deps::bevy::prelude::{default, App, FromWorld, Plugin};
+use common::deps::bevy::reflect::{self as bevy_reflect, Reflect};
+use common::deps::bevy::utils::HashMap;
 
 mod inspector;
 mod resources;

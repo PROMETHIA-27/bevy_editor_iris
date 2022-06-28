@@ -5,9 +5,16 @@ use bevy::prelude::{App, World};
 use bevy::reflect::{GetTypeRegistration, TypeRegistry};
 use bevy::utils::HashMap;
 
-use crate::{Interface, Message, StreamCounter, StreamId};
+use crate::interface::{Interface, StreamCounter, StreamId};
+use crate::message::Message;
 
+/// A trait to register messages to an app.
+/// Messages implicitly implement this; they will register themselves.
+///
+/// Message bundles can be made for convenience by manually implementing this
+/// for a unit struct.
 pub trait RegisterMessage {
+    /// Register messages to an app
     fn register(app: &mut App);
 }
 
@@ -66,9 +73,12 @@ impl_register_message_tuple!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, 
 impl_register_message_tuple!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15);
 impl_register_message_tuple!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16);
 
+/// An extension to make registering messages easier
 pub trait AppRegisterMsgExt {
+    /// Creates and adds a distributor to the app
     fn add_distributor(&mut self) -> &mut Self;
 
+    /// Register a registerable message/bundle
     fn add_messages<M: RegisterMessage>(&mut self) -> &mut Self;
 }
 
@@ -84,6 +94,7 @@ impl AppRegisterMsgExt for App {
     }
 }
 
+/// A resource which manages the functionality to distribute messages to a world or collect them from it.
 #[derive(Default)]
 pub struct MessageDistributor {
     map: HashMap<
@@ -96,11 +107,13 @@ pub struct MessageDistributor {
 }
 
 impl MessageDistributor {
+    /// Register a message to the distributor
     pub fn register<M: Message>(&mut self) {
         self.map
             .insert(TypeId::of::<M>(), (distribute::<M>, collect::<M>));
     }
 
+    /// Distribute a message by sending it as an event
     pub fn distribute(
         &self,
         id: StreamId,
@@ -115,6 +128,7 @@ impl MessageDistributor {
         }
     }
 
+    /// Collect all sent messages to give them to the interface
     pub fn collect(&self, world: &mut World) -> Vec<(StreamId, Box<dyn Message>)> {
         let mut buffer = vec![];
 
@@ -126,8 +140,13 @@ impl MessageDistributor {
     }
 }
 
+// TODO: Figure out switching to a better stream handling format, so that this event
+// is unnecessary.
+/// An event that occurs when a particular message type is received
 pub struct MessageReceived<M: Message> {
+    /// The stream that this message came from
     pub id: StreamId,
+    /// The message
     pub msg: M,
 }
 
@@ -143,6 +162,7 @@ fn distribute<M: Message>(id: StreamId, msg: Box<dyn Message>, world: &mut World
     events.send(MessageReceived { id, msg });
 }
 
+/// A resource which allows sending messages without an [`Interface`]
 pub struct MessageWriter<M: Message> {
     messages: Vec<(StreamId, M)>,
     stream_counter: StreamCounter,
@@ -156,6 +176,7 @@ impl<M: Message> MessageWriter<M> {
         }
     }
 
+    /// Send a message to the `MessageWriter` to be sent to the remote application
     pub fn send(&mut self, id: Option<StreamId>, msg: M) -> StreamId {
         let id = match id {
             Some(id) => id,
@@ -176,6 +197,7 @@ fn collect<M: Message>(world: &mut World, buffer: &mut Vec<(StreamId, Box<dyn Me
     buffer.extend(messages.map(|(id, msg)| (id, Box::new(msg) as Box<dyn Message>)));
 }
 
+/// Take all queued messages from the interface and send them as events
 pub fn distribute_messages(world: &mut World) {
     let distributor = world.remove_resource::<MessageDistributor>().unwrap();
     let interface = world.remove_resource::<Interface>().unwrap();
@@ -189,12 +211,13 @@ pub fn distribute_messages(world: &mut World) {
     world.insert_resource(interface);
 }
 
+/// Collect all sent messages and give them to the interface
 pub fn collect_messages(world: &mut World) {
     let distributor = world.remove_resource::<MessageDistributor>().unwrap();
     let interface = world.remove_resource::<Interface>().unwrap();
 
     let messages = distributor.collect(world);
-    _ = interface.send_all(messages);
+    _ = interface.send_all(messages.into_iter());
 
     world.insert_resource(distributor);
     world.insert_resource(interface);

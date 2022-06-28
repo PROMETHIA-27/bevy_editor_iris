@@ -1,3 +1,16 @@
+#![deny(missing_docs)]
+//! This crate contains common logic for the plugin/client and editor crates of bevy_editor_iris.
+//!
+//! This crate mainly provides the networking infrastructure of the editor.
+//! At a high level:
+//! - Messages are represented as reflectable types which can be serialized and deserialized automatically at both ends
+//! - A new thread is spun up, the remote thread. The remote thread runs a tokio runtime which drives quinn, the QUIC protocol library.
+//! - Messages are sent between the remote thread and the local threads (all other threads) via channels.
+//! - Sending a message without a StreamId creates a new "transaction", represented as a stream.
+//! - When a message is received, the corresponding StreamId is kept with it.
+//! - Sending a message with a StreamId sends it to that transaction.
+//! - Messages that are received are distributed via bevy's event system.
+
 use std::borrow::Cow;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::Duration;
@@ -7,28 +20,42 @@ use bevy::prelude::{IntoExclusiveSystem, Plugin, SystemSet};
 use futures_util::Future;
 
 use self::asynchronous::RemoteThreadError;
-use self::message::distributor;
+use self::interface::{StreamCounter, StreamId};
+use self::message::distributor::{self, AppRegisterMsgExt};
+use self::message::messages::DefaultMessages;
+use self::message::Message;
 
-pub use bevy;
-pub use futures_util;
-pub use quinn;
-pub use rcgen;
-pub use rustls;
-pub use tokio;
-
-pub use self::interface::{Interface, InterfaceError, StreamCounter, StreamId};
-pub use self::message::{
-    AppRegisterMsgExt, DefaultMessages, Message, MessageReceived, MessageWriter, ReflectMessage,
-    ReflectMessageFromReflect, RegisterMessage,
-};
-pub use self::serde::{ReflectObject, RemoteEntity};
-
+/// Contains asynchronous logic using tokio which powers the remote thread
 pub mod asynchronous;
-mod interface;
+/// Contains logic binding the local and remote threads together
+pub mod interface;
+/// Contains message infrastructure and some built-in message definitions
 pub mod message;
+/// Contains logic related to serializing and deserializing reflected types and messages
 pub mod serde;
+/// Contains local-thread logic which both the editor and client depend on
 pub mod systems;
 
+/// Contains all the most commonly used imports for easy usage.
+pub mod prelude {
+    pub use super::interface::{Interface, InterfaceError, StreamId};
+    pub use super::message::distributor::AppRegisterMsgExt;
+    pub use super::message::{IntoAny, IntoReflect, Message};
+    pub use super::serde::{ReflectObject, RemoteEntity};
+}
+
+/// Contains re-exports of dependencies
+pub mod deps {
+    pub use bevy;
+    pub use futures_util;
+    pub use quinn;
+    pub use rcgen;
+    pub use rustls;
+    pub use tokio;
+}
+
+/// Handles common logic for both the editor and client components of the iris editor.,
+/// including opening the remote thread and registering messages.
 pub struct CommonPlugin<
     Run: 'static
         + Fn(
@@ -73,10 +100,12 @@ impl<
 }
 
 // TODO: These won't be necessary forever
+/// The address of the server
 pub fn server_addr() -> std::net::SocketAddr {
     "127.0.0.1:5001".parse().unwrap()
 }
 
+/// The address of the client
 pub fn client_addr() -> std::net::SocketAddr {
     "127.0.0.1:5000".parse().unwrap()
 }

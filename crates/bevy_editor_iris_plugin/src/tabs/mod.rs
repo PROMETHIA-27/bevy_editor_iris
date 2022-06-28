@@ -1,4 +1,4 @@
-use bevy_editor_iris_common::bevy::prelude::{App, Plugin};
+use common::deps::bevy::prelude::{App, Plugin};
 
 mod inspector;
 

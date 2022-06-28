@@ -5,20 +5,21 @@ use thiserror::Error;
 
 use crate::serde;
 
-pub use self::distributor::{
-    AppRegisterMsgExt, MessageDistributor, MessageReceived, MessageWriter, RegisterMessage,
-};
-pub use self::messages::*;
-
+/// Contains logic for distributing messages on the local threads.
 pub mod distributor;
+/// Contains built-in message definitions.
 pub mod messages;
 
 // TODO: This may end up in bevy alongside `Reflect`
+/// Blanket impl to cast a type to [`Any`].
 pub trait IntoAny {
+    /// Consumes a [boxed](Box) type and casts it to `dyn Any`.
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 
+    /// Casts a reference to `dyn Any`.
     fn as_any(&self) -> &dyn Any;
 
+    /// Casts a mutable reference to `dyn Any`.
     fn as_mut_any(&mut self) -> &mut dyn Any;
 }
 
@@ -37,11 +38,15 @@ impl<T: Any> IntoAny for T {
 }
 
 // TODO: This may end up in bevy alongside `Reflect`
+/// Blanket impl to cast a type to [`Reflect`].
 pub trait IntoReflect: Reflect {
+    /// Consumes a [boxed](Box) type and casts it to `dyn Reflect`.
     fn into_reflect(self: Box<Self>) -> Box<dyn Reflect>;
 
+    /// Casts a reference to `dyn Reflect`.
     fn as_reflect(&self) -> &dyn Reflect;
 
+    /// Casts a mutable reference to `dyn Reflect`.
     fn as_mut_reflect(&mut self) -> &mut dyn Reflect;
 }
 
@@ -59,6 +64,8 @@ impl<T: Reflect> IntoReflect for T {
     }
 }
 
+/// A trait that marks a type as being sendable as a message
+/// to the remote application.
 pub trait Message: Reflect + IntoAny + IntoReflect {}
 
 impl std::fmt::Debug for dyn Message {
@@ -68,6 +75,7 @@ impl std::fmt::Debug for dyn Message {
 }
 
 // TODO: This can be replaced entirely by #[reflect_trait] in bevy 0.8, I just need the `get_boxed` method which is absent in 0.7
+/// Allows casting a `dyn Reflect` to a `dyn Message`, if the `dyn Reflect` is the correct type.
 #[derive(Clone)]
 pub struct ReflectMessage {
     get_func: fn(&dyn Reflect) -> Option<&dyn Message>,
@@ -76,14 +84,17 @@ pub struct ReflectMessage {
 }
 
 impl ReflectMessage {
+    /// Converts a `&dyn Reflect` to a `&dyn Message`
     pub fn get<'a>(&self, reflect_value: &'a dyn Reflect) -> Option<&'a dyn Message> {
         (self.get_func)(reflect_value)
     }
 
+    /// Converts a `&mut dyn Reflect` to a `&mut dyn Message`
     pub fn get_mut<'a>(&self, reflect_value: &'a mut dyn Reflect) -> Option<&'a mut dyn Message> {
         (self.get_mut_func)(reflect_value)
     }
 
+    /// Converts a `Box<dyn Reflect>` to a `Box<dyn Message>`
     pub fn get_boxed(
         &self,
         reflect_value: Box<dyn Reflect>,
@@ -115,7 +126,9 @@ impl<T: Message + Reflect> FromType<T> for ReflectMessage {
 }
 
 // TODO: This may be replaced in the future by something like `ReflectFromReflect`, but unfortunately for now this is necessary
+/// Mirror of FromReflect to be used by [`ReflectMessageFromReflect`]
 pub trait MessageFromReflect {
+    /// Mirror of [`FromReflect::from_reflect()`]
     fn from_reflect(&self, reflect: &dyn Reflect) -> Option<Box<Self>>;
 }
 
@@ -125,12 +138,15 @@ impl<T: FromReflect> MessageFromReflect for T {
     }
 }
 
+/// Contains the FromReflect implementation of a type. Used as a temporary stopgap while waiting for an official
+/// `ReflectFromReflect` to be added to bevy.
 #[derive(Clone)]
 pub struct ReflectMessageFromReflect {
     from_reflect: fn(&dyn Reflect) -> Option<Box<dyn Reflect>>,
 }
 
 impl ReflectMessageFromReflect {
+    /// See [`FromReflect`]
     pub fn from_reflect(&self, reflect: &dyn Reflect) -> Option<Box<dyn Reflect>> {
         (self.from_reflect)(reflect)
     }
@@ -147,6 +163,7 @@ impl<T: Reflect + FromReflect> FromType<T> for ReflectMessageFromReflect {
     }
 }
 
+/// Attempt to serialize a message into a yaml byte vector.
 pub fn serialize_message<M: ?Sized + Message>(msg: Box<M>) -> serde_yaml::Result<Vec<u8>> {
     serde::with_type_registry(|reg| {
         let reg = reg.unwrap().read();
@@ -157,20 +174,27 @@ pub fn serialize_message<M: ?Sized + Message>(msg: Box<M>) -> serde_yaml::Result
     })
 }
 
+/// An error that occurs while deserializing a [`Message`].
 #[derive(Debug, Error)]
 pub enum MessageDeserError {
+    /// An error occurred during serialization
     #[error(transparent)]
     YamlError(#[from] serde_yaml::Error),
+    /// The message type is not registered in the TypeRegistry
     #[error("the received message {} is not registered in the TypeRegistry", .0)]
     MessageNotRegistered(String),
+    /// The message does not implement FromReflect or does not reflect the trait implementation
     #[error("the received message {} does not have an accessible FromReflect implementation; make sure to use #[reflect(MessageFromReflect)]", .0)]
     MessageNotFromReflect(String),
+    /// The message failed to be converted using FromReflect
     #[error("the received message could not be converted to a concrete type: {:#?}", .0)]
     FromReflectFailed(String),
+    /// The message does not implement [`Message`] or does not use #\[reflect(Message)]
     #[error("the received message {} does not have an accessible Message implementation; make sure to use #[reflect(Message)] or #[message]", .0)]
     MessageNotImpl(String),
 }
 
+/// Attempt to deserialize a [`Message`] from a yaml byte slice
 pub fn deserialize_message(buf: &[u8]) -> Result<Box<dyn Message>, MessageDeserError> {
     serde::with_type_registry(|reg| {
         let reg = reg.unwrap().read();

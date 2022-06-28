@@ -1,9 +1,9 @@
-use bevy_editor_iris_common::bevy::ecs as bevy_ecs;
-use bevy_editor_iris_common::bevy::prelude::{
+use common::deps::bevy::ecs as bevy_ecs;
+use common::deps::bevy::prelude::{
     Commands, Component, Entity, Name, Query, Reflect, RemovedComponents, ResMut, Without,
 };
-use bevy_editor_iris_common::bevy::reflect as bevy_reflect;
-use bevy_editor_iris_common::Interface;
+use common::deps::bevy::reflect as bevy_reflect;
+use common::interface::Interface;
 
 use crate::client::ClientInterfaceExt;
 

@@ -6,9 +6,25 @@ use bevy::prelude::{Res, Time, World};
 use futures_util::Future;
 
 use crate::asynchronous::{self, RemoteThread, RemoteThreadError};
-use crate::interface::StreamCounter;
-use crate::{Interface, Message, StreamId};
+use crate::interface::{Interface, StreamCounter};
+use crate::{Message, StreamId};
 
+/// Creates a run criteria for running a system on an interval of `duration`.
+///
+/// ## Example:
+/// ```
+/// # use std::time::Duration;
+/// # use bevy::prelude::*;
+/// #
+/// # fn my_system() {}
+/// #
+/// App::new()
+///     .add_system_set(
+///         SystemSet::new()
+///             .with_run_criteria(run_on_timer(Duration::from_secs(1)))
+///             .with_system(my_system)
+///     );
+/// ```
 pub fn run_on_timer(duration: Duration) -> impl FnMut(Res<Time>) -> ShouldRun {
     struct Timer {
         duration: Duration,
@@ -32,6 +48,8 @@ pub fn run_on_timer(duration: Duration) -> impl FnMut(Res<Time>) -> ShouldRun {
     }
 }
 
+/// Monitors the remote thread until it closes; when it does, uses the given run function to
+/// reopen it if the closure was unexpected.
 pub fn monitor_remote_thread<F: 'static + Future<Output = Result<(), RemoteThreadError>>>(
     run_fn: impl 'static
         + Fn(

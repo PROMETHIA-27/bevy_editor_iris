@@ -1,6 +1,6 @@
-use bevy_editor_iris_common::bevy::prelude::Entity;
-use bevy_editor_iris_common::message::EntityUpdate;
-use bevy_editor_iris_common::{Interface, InterfaceError};
+use common::deps::bevy::prelude::Entity;
+use common::interface::{Interface, InterfaceError};
+use common::message::messages::EntityUpdate;
 
 pub trait ClientInterfaceExt {
     fn send_entity_update(

@@ -1,5 +1,5 @@
-use bevy_editor_iris_common::bevy::prelude::ResMut;
 use bevy_egui::{egui, EguiContext};
+use common::deps::bevy::prelude::ResMut;
 
 use crate::tabs::{SelectedTab, TabRegistry};
 

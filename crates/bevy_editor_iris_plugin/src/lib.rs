@@ -1,9 +1,13 @@
-use bevy_editor_iris_common::bevy::prelude::{App, Plugin};
 use client::ClientPlugin;
+use common::deps::bevy::prelude::{App, Plugin};
 use tabs::TabPlugin;
 
 pub mod client;
 pub mod tabs;
+
+pub mod deps {
+    pub use common;
+}
 
 pub struct IrisClientPlugin;
 
