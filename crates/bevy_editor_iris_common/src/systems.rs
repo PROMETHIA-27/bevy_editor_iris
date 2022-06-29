@@ -1,13 +1,13 @@
-use std::sync::mpsc::{Receiver, Sender};
 use std::time::Duration;
 
 use bevy::ecs::schedule::ShouldRun;
 use bevy::prelude::{Res, Time, World};
-use futures_util::Future;
+use futures_lite::Future;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
-use crate::asynchronous::{self, RemoteThread, RemoteThreadError};
-use crate::interface::{Interface, StreamCounter};
-use crate::{Message, StreamId};
+use crate::asynchronous::{self, OpeningReceiver, OpeningSender, RemoteThread, RemoteThreadError};
+use crate::interface::Interface;
+use crate::Message;
 
 /// Creates a run criteria for running a system on an interval of `duration`.
 ///
@@ -53,9 +53,9 @@ pub fn run_on_timer(duration: Duration) -> impl FnMut(Res<Time>) -> ShouldRun {
 pub fn monitor_remote_thread<F: 'static + Future<Output = Result<(), RemoteThreadError>>>(
     run_fn: impl 'static
         + Fn(
-            Receiver<(StreamId, Box<dyn Message>)>,
-            Sender<(StreamId, Box<dyn Message>)>,
-            StreamCounter,
+            OpeningSender,
+            OpeningReceiver,
+            // StreamCounter,
         ) -> F
         + Send
         + Sync

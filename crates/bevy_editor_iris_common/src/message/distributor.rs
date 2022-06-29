@@ -5,7 +5,7 @@ use bevy::prelude::{App, World};
 use bevy::reflect::{GetTypeRegistration, TypeRegistry};
 use bevy::utils::HashMap;
 
-use crate::interface::{Interface, StreamCounter, StreamId};
+use crate::interface::Interface;
 use crate::message::Message;
 
 /// A trait to register messages to an app.
@@ -27,10 +27,10 @@ impl<M: Message + GetTypeRegistration> RegisterMessage for M {
         let mut distributor = app.world.remove_resource::<MessageDistributor>().expect(
             "MessageDistributor not found; call app.add_distributor() before registering messages",
         );
-        let stream_counter = app
-            .world
-            .remove_resource::<StreamCounter>()
-            .expect("StreamCounter not found; insert a StreamCounter before registering messages");
+        // let stream_counter = app
+        //     .world
+        //     .remove_resource::<StreamCounter>()
+        //     .expect("StreamCounter not found; insert a StreamCounter before registering messages");
 
         app.insert_resource::<MessageWriter<M>>(MessageWriter::new(stream_counter.clone()));
         app.add_event::<MessageReceived<M>>();
@@ -202,10 +202,10 @@ pub fn distribute_messages(world: &mut World) {
     let distributor = world.remove_resource::<MessageDistributor>().unwrap();
     let interface = world.remove_resource::<Interface>().unwrap();
 
-    let messages = interface.recv_all().unwrap();
-    for (id, msg) in messages {
-        _ = distributor.distribute(id, msg, world);
-    }
+    // let messages = interface.recv_all().unwrap();
+    // for (id, msg) in messages {
+    //     _ = distributor.distribute(id, msg, world);
+    // }
 
     world.insert_resource(distributor);
     world.insert_resource(interface);
@@ -216,8 +216,8 @@ pub fn collect_messages(world: &mut World) {
     let distributor = world.remove_resource::<MessageDistributor>().unwrap();
     let interface = world.remove_resource::<Interface>().unwrap();
 
-    let messages = distributor.collect(world);
-    _ = interface.send_all(messages.into_iter());
+    // let messages = distributor.collect(world);
+    // _ = interface.send_all(messages.into_iter());
 
     world.insert_resource(distributor);
     world.insert_resource(interface);

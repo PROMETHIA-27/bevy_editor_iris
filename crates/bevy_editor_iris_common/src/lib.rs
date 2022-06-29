@@ -15,13 +15,13 @@ use std::borrow::Cow;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::Duration;
 
+use asynchronous::{OpeningReceiver, OpeningSender};
 use bevy::math::Vec3A;
 use bevy::prelude::{IntoExclusiveSystem, Plugin, SystemSet};
-use futures_util::Future;
+use futures_lite::Future;
 
 use self::asynchronous::RemoteThreadError;
-use self::interface::{StreamCounter, StreamId};
-use self::message::distributor::{self, AppRegisterMsgExt};
+// use self::message::distributor::{self, AppRegisterMsgExt};
 use self::message::messages::DefaultMessages;
 use self::message::Message;
 
@@ -29,6 +29,8 @@ use self::message::Message;
 pub mod asynchronous;
 /// Contains logic binding the local and remote threads together
 pub mod interface;
+/// Contains utility macros
+pub mod macros;
 /// Contains message infrastructure and some built-in message definitions
 pub mod message;
 /// Contains logic related to serializing and deserializing reflected types and messages
@@ -38,8 +40,8 @@ pub mod systems;
 
 /// Contains all the most commonly used imports for easy usage.
 pub mod prelude {
-    pub use super::interface::{Interface, InterfaceError, StreamId};
-    pub use super::message::distributor::AppRegisterMsgExt;
+    pub use super::interface::{Interface, InterfaceError};
+    // pub use super::message::distributor::AppRegisterMsgExt;
     pub use super::message::{IntoAny, IntoReflect, Message};
     pub use super::serde::{ReflectObject, RemoteEntity};
 }
@@ -47,7 +49,7 @@ pub mod prelude {
 /// Contains re-exports of dependencies
 pub mod deps {
     pub use bevy;
-    pub use futures_util;
+    pub use futures_lite;
     pub use quinn;
     pub use rcgen;
     pub use rustls;
@@ -59,9 +61,9 @@ pub mod deps {
 pub struct CommonPlugin<
     Run: 'static
         + Fn(
-            Receiver<(StreamId, Box<dyn Message>)>,
-            Sender<(StreamId, Box<dyn Message>)>,
-            StreamCounter,
+            OpeningSender,
+            OpeningReceiver,
+            // StreamCounter,
         ) -> F
         + Send
         + Sync
@@ -72,9 +74,9 @@ pub struct CommonPlugin<
 impl<
         Run: 'static
             + Fn(
-                Receiver<(StreamId, Box<dyn Message>)>,
-                Sender<(StreamId, Box<dyn Message>)>,
-                StreamCounter,
+                OpeningSender,
+                OpeningReceiver,
+                // StreamCounter,
             ) -> F
             + Send
             + Sync
@@ -83,18 +85,18 @@ impl<
     > Plugin for CommonPlugin<Run, F>
 {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app.insert_resource(StreamCounter::default())
-            .add_startup_system(asynchronous::open_remote_thread(self.0).exclusive_system())
-            .add_system_set(
-                SystemSet::new()
-                    .with_run_criteria(systems::run_on_timer(Duration::from_secs(1)))
-                    .with_system(systems::monitor_remote_thread(self.0).exclusive_system()),
-            )
-            .add_distributor()
-            .add_messages::<DefaultMessages>()
-            .add_system(distributor::distribute_messages.exclusive_system())
-            .add_system(distributor::collect_messages.exclusive_system())
-            .register_type::<Cow<'static, str>>()
+        // app.insert_resource(StreamCounter::default())
+        // .add_startup_system(asynchronous::open_remote_thread(self.0).exclusive_system())
+        // .add_system_set(
+        //     SystemSet::new()
+        //         .with_run_criteria(systems::run_on_timer(Duration::from_secs(1)))
+        //         .with_system(systems::monitor_remote_thread(self.0).exclusive_system()),
+        // )
+        // app.add_distributor()
+        // .add_messages::<DefaultMessages>()
+        // .add_system(distributor::distribute_messages.exclusive_system())
+        // .add_system(distributor::collect_messages.exclusive_system())
+        app.register_type::<Cow<'static, str>>()
             .register_type::<Vec3A>();
     }
 }
@@ -108,4 +110,55 @@ pub fn server_addr() -> std::net::SocketAddr {
 /// The address of the client
 pub fn client_addr() -> std::net::SocketAddr {
     "127.0.0.1:5000".parse().unwrap()
+}
+
+#[test]
+fn playground() {
+    use tokio::select;
+    use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+
+    let (remote_tx, local_rx) = unbounded_channel();
+    let (local_tx, remote_rx) = unbounded_channel();
+
+    let remote_thread = std::thread::spawn(move || {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async {
+                let pending_messages = futures::stream::FuturesUnordered::new();
+                let received_messages = futures::stream::FuturesUnordered::new();
+
+                loop {
+                    select! {
+                        (trans_tx, trans_rx) = remote_rx.recv() => {
+                            // create_connection()
+                        }
+                        msg = pending_messages.next() => {
+
+                        }
+                    }
+                }
+            });
+
+        async fn create_connection<G: Future>(
+            trans_tx: UnboundedSender<impl Future>,
+            trans_rx: UnboundedReceiver<G>,
+            connection: quinn::NewConnection,
+        ) {
+            let streams = connection.connection.open_bi().await?;
+
+            received_messages.push(async move {
+                let (send, recv) = streams;
+
+                let msg = todo!(); // read message from recv
+
+                (send, recv, msg)
+            })
+        }
+    });
+
+    let (remote_trans_tx, local_trans_rx) = unbounded_channel();
+    let (local_trans_tx, remote_trans_rx) = unbounded_channel();
+    local_tx.send((remote_trans_tx, remote_trans_rx));
 }

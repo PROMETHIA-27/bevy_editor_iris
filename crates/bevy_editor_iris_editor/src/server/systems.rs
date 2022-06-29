@@ -5,8 +5,9 @@ use common::asynchronous::RemoteThreadError;
 use common::deps::bevy::prelude::{EventReader, Local, Res, ResMut};
 use common::deps::bevy::reflect::Reflect;
 use common::deps::bevy::utils::HashMap;
-use common::deps::futures_util::StreamExt;
+use common::deps::futures_lite::StreamExt;
 use common::deps::quinn::Endpoint;
+use common::deps::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use common::interface::{StreamCounter, StreamId};
 use common::message::distributor::MessageReceived;
 use common::message::messages::{EntityUpdate, SceneDiff};
@@ -18,8 +19,11 @@ use crate::server;
 use super::EntityCache;
 
 pub async fn run_server(
-    local_rx: Receiver<(StreamId, Box<dyn Message>)>,
-    remote_tx: Sender<(StreamId, Box<dyn Message>)>,
+    tx: UnboundedSender<Box<dyn Message>>,
+    rx: UnboundedReceiver<(
+        UnboundedSender<Box<dyn Message>>,
+        UnboundedReceiver<Box<dyn Message>>,
+    )>,
     mut stream_counter: StreamCounter,
 ) -> Result<(), RemoteThreadError> {
     let (cert, key) = server::generate_self_signed_cert()?;
@@ -37,7 +41,7 @@ pub async fn run_server(
 
         println!("Received a connection!");
 
-        asynchronous::process_connection(new, &local_rx, &remote_tx, &mut stream_counter).await?;
+        asynchronous::process_connection(new, &tx, &rx, &mut stream_counter).await?;
     }
 
     Ok(())

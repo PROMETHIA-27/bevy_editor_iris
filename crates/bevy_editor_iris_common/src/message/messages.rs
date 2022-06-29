@@ -2,7 +2,7 @@ use bevy::prelude::{App, Reflect};
 use bevy::reflect::FromReflect;
 use bevy_editor_iris_derive::{message, Message};
 
-use crate::message::distributor::RegisterMessage;
+// use crate::message::distributor::RegisterMessage;
 use crate::message::{Message, ReflectMessage, ReflectMessageFromReflect};
 use crate::serde::{ReflectObject, RemoteEntity};
 
@@ -40,11 +40,11 @@ pub struct SceneDiff {
 /// A registerable set of built-in messages to the iris editor.
 pub struct DefaultMessages;
 
-impl RegisterMessage for DefaultMessages {
-    fn register(app: &mut App) {
-        Ping::register(app);
-        EntityUpdate::register(app);
-        CloseTransaction::register(app);
-        SceneDiff::register(app);
-    }
-}
+// impl RegisterMessage for DefaultMessages {
+//     fn register(app: &mut App) {
+//         Ping::register(app);
+//         EntityUpdate::register(app);
+//         CloseTransaction::register(app);
+//         SceneDiff::register(app);
+//     }
+// }

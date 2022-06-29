@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::io;
 
 use bevy::reflect::{FromReflect, FromType, Reflect};
 use thiserror::Error;
@@ -6,13 +7,13 @@ use thiserror::Error;
 use crate::serde;
 
 /// Contains logic for distributing messages on the local threads.
-pub mod distributor;
+// pub mod distributor;
 /// Contains built-in message definitions.
 pub mod messages;
 
 // TODO: This may end up in bevy alongside `Reflect`
 /// Blanket impl to cast a type to [`Any`].
-pub trait IntoAny {
+pub trait IntoAny: Any {
     /// Consumes a [boxed](Box) type and casts it to `dyn Any`.
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 
@@ -67,6 +68,24 @@ impl<T: Reflect> IntoReflect for T {
 /// A trait that marks a type as being sendable as a message
 /// to the remote application.
 pub trait Message: Reflect + IntoAny + IntoReflect {}
+
+impl dyn Message {
+    /// Returns `true` if this message is of type `T` and `false` otherwise.
+    pub fn is<T: Any>(&self) -> bool {
+        self.as_any().is::<T>()
+    }
+
+    // TODO: Reference downcasts
+    /// Consumes and converts this message into type `T` if this message
+    /// is an instance of type `T`. Returns `Err(self)` otherwise.
+    pub fn downcast<T: Any>(self: Box<Self>) -> Result<T, Box<Self>> {
+        if self.is::<T>() {
+            Ok(*self.into_any().downcast::<T>().unwrap())
+        } else {
+            Err(self)
+        }
+    }
+}
 
 impl std::fmt::Debug for dyn Message {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -163,14 +182,17 @@ impl<T: Reflect + FromReflect> FromType<T> for ReflectMessageFromReflect {
     }
 }
 
-/// Attempt to serialize a message into a yaml byte vector.
-pub fn serialize_message<M: ?Sized + Message>(msg: Box<M>) -> serde_yaml::Result<Vec<u8>> {
+/// Attempt to serialize a message into a yaml byte writer.
+pub fn serialize_message<M: ?Sized + Message>(
+    msg: Box<M>,
+    writer: impl io::Write,
+) -> serde_yaml::Result<()> {
     serde::with_type_registry(|reg| {
         let reg = reg.unwrap().read();
 
         let refl = bevy::reflect::serde::ReflectSerializer::new(msg.as_reflect(), &*reg);
 
-        serde_yaml::to_vec(&refl)
+        serde_yaml::to_writer(writer, &refl)
     })
 }
 
