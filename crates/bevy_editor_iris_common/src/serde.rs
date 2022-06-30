@@ -2,6 +2,7 @@ use std::borrow::{Borrow, BorrowMut};
 use std::cell::RefCell;
 use std::hash::Hash;
 
+use bevy::math::Vec4;
 use bevy::prelude::{default, Entity};
 use bevy::reflect::{FromReflect, Reflect, TypeRegistry};
 use serde::de::DeserializeSeed;

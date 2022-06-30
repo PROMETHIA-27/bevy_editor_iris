@@ -22,11 +22,12 @@ use futures_lite::Future;
 
 use self::asynchronous::RemoteThreadError;
 // use self::message::distributor::{self, AppRegisterMsgExt};
-use self::message::messages::DefaultMessages;
 use self::message::Message;
 
 /// Contains asynchronous logic using tokio which powers the remote thread
 pub mod asynchronous;
+/// Contains this crate's error types
+pub mod error;
 /// Contains logic binding the local and remote threads together
 pub mod interface;
 /// Contains utility macros
@@ -40,8 +41,9 @@ pub mod systems;
 
 /// Contains all the most commonly used imports for easy usage.
 pub mod prelude {
-    pub use super::interface::{Interface, InterfaceError};
+    pub use super::interface::{Interface, Transaction, TransactionReceiver, TransactionSender};
     // pub use super::message::distributor::AppRegisterMsgExt;
+    pub use super::error::{InterfaceError, TransactionError};
     pub use super::message::{IntoAny, IntoReflect, Message};
     pub use super::serde::{ReflectObject, RemoteEntity};
 }
@@ -110,55 +112,4 @@ pub fn server_addr() -> std::net::SocketAddr {
 /// The address of the client
 pub fn client_addr() -> std::net::SocketAddr {
     "127.0.0.1:5000".parse().unwrap()
-}
-
-#[test]
-fn playground() {
-    use tokio::select;
-    use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
-
-    let (remote_tx, local_rx) = unbounded_channel();
-    let (local_tx, remote_rx) = unbounded_channel();
-
-    let remote_thread = std::thread::spawn(move || {
-        tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap()
-            .block_on(async {
-                let pending_messages = futures::stream::FuturesUnordered::new();
-                let received_messages = futures::stream::FuturesUnordered::new();
-
-                loop {
-                    select! {
-                        (trans_tx, trans_rx) = remote_rx.recv() => {
-                            // create_connection()
-                        }
-                        msg = pending_messages.next() => {
-
-                        }
-                    }
-                }
-            });
-
-        async fn create_connection<G: Future>(
-            trans_tx: UnboundedSender<impl Future>,
-            trans_rx: UnboundedReceiver<G>,
-            connection: quinn::NewConnection,
-        ) {
-            let streams = connection.connection.open_bi().await?;
-
-            received_messages.push(async move {
-                let (send, recv) = streams;
-
-                let msg = todo!(); // read message from recv
-
-                (send, recv, msg)
-            })
-        }
-    });
-
-    let (remote_trans_tx, local_trans_rx) = unbounded_channel();
-    let (local_trans_tx, remote_trans_rx) = unbounded_channel();
-    local_tx.send((remote_trans_tx, remote_trans_rx));
 }

@@ -17,8 +17,8 @@ impl Plugin for ServerPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(CommonPlugin(systems::run_server))
             .insert_resource(resources::EntityCache::default())
-            .add_system_to_stage(CoreStage::PreUpdate, systems::update_entity_cache)
-            .add_system_to_stage(CoreStage::PreUpdate, systems::apply_scene_diff);
+            .add_system_to_stage(CoreStage::PreUpdate, systems::update_entity_cache);
+        // .add_system_to_stage(CoreStage::PreUpdate, systems::apply_scene_diff);
     }
 }
 

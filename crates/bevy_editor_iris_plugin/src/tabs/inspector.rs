@@ -5,7 +5,7 @@ use common::deps::bevy::prelude::{
 use common::deps::bevy::reflect as bevy_reflect;
 use common::interface::Interface;
 
-use crate::client::ClientInterfaceExt;
+// use crate::client::ClientInterfaceExt;
 
 #[derive(Component, Default, Reflect)]
 #[component(storage = "SparseSet")]
@@ -24,12 +24,12 @@ pub fn tag_new_entities(
         commands.entity(entity).insert(TrackedInEditor);
     }
 
-    _ = interface.send_entity_update(
-        query
-            .iter()
-            .map(|(e, n)| (e, n.map(|name| name.to_string()))),
-        false,
-    );
+    // _ = interface.send_entity_update(
+    //     query
+    //         .iter()
+    //         .map(|(e, n)| (e, n.map(|name| name.to_string()))),
+    //     false,
+    // );
 }
 
 pub fn tag_deleted_entities(
@@ -40,5 +40,5 @@ pub fn tag_deleted_entities(
         return;
     }
 
-    _ = interface.send_entity_update(removals.iter().map(|e| (e, None)), true);
+    // _ = interface.send_entity_update(removals.iter().map(|e| (e, None)), true);
 }

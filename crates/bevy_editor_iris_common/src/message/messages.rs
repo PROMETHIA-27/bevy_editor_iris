@@ -36,15 +36,3 @@ pub struct SceneDiff {
     /// The set of entities and their components which have changed since last diff
     pub changes: Vec<(RemoteEntity, Vec<ReflectObject>)>,
 }
-
-/// A registerable set of built-in messages to the iris editor.
-pub struct DefaultMessages;
-
-// impl RegisterMessage for DefaultMessages {
-//     fn register(app: &mut App) {
-//         Ping::register(app);
-//         EntityUpdate::register(app);
-//         CloseTransaction::register(app);
-//         SceneDiff::register(app);
-//     }
-// }
