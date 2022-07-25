@@ -3,11 +3,10 @@ use std::time::Duration;
 use bevy::ecs::schedule::ShouldRun;
 use bevy::prelude::{Res, Time, World};
 use futures_lite::Future;
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
-use crate::asynchronous::{self, OpeningReceiver, OpeningSender, RemoteThread, RemoteThreadError};
+use crate::asynchronous::{self, OpeningReceiver, OpeningSender, RemoteThread};
+use crate::error::RemoteThreadError;
 use crate::interface::Interface;
-use crate::Message;
 
 /// Creates a run criteria for running a system on an interval of `duration`.
 ///

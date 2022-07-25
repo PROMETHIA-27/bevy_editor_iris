@@ -2,14 +2,9 @@ use std::any::Any;
 use std::io;
 
 use bevy::reflect::{FromReflect, FromType, Reflect};
-use thiserror::Error;
 
+use crate::error::MessageDeserError;
 use crate::serde;
-
-/// Contains logic for distributing messages on the local threads.
-// pub mod distributor;
-/// Contains built-in message definitions.
-pub mod messages;
 
 // TODO: This may end up in bevy alongside `Reflect`
 /// Blanket impl to cast a type to [`Any`].
@@ -194,26 +189,6 @@ pub fn serialize_message<M: ?Sized + Message>(
 
         serde_yaml::to_writer(writer, &refl)
     })
-}
-
-/// An error that occurs while deserializing a [`Message`].
-#[derive(Debug, Error)]
-pub enum MessageDeserError {
-    /// An error occurred during serialization
-    #[error(transparent)]
-    YamlError(#[from] serde_yaml::Error),
-    /// The message type is not registered in the TypeRegistry
-    #[error("the received message {} is not registered in the TypeRegistry", .0)]
-    MessageNotRegistered(String),
-    /// The message does not implement FromReflect or does not reflect the trait implementation
-    #[error("the received message {} does not have an accessible FromReflect implementation; make sure to use #[reflect(MessageFromReflect)]", .0)]
-    MessageNotFromReflect(String),
-    /// The message failed to be converted using FromReflect
-    #[error("the received message could not be converted to a concrete type: {:#?}", .0)]
-    FromReflectFailed(String),
-    /// The message does not implement [`Message`] or does not use #\[reflect(Message)]
-    #[error("the received message {} does not have an accessible Message implementation; make sure to use #[reflect(Message)] or #[message]", .0)]
-    MessageNotImpl(String),
 }
 
 /// Attempt to deserialize a [`Message`] from a yaml byte slice

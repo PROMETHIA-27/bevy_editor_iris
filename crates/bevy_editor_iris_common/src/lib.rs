@@ -12,18 +12,20 @@
 //! - Messages that are received are distributed via bevy's event system.
 
 use std::borrow::Cow;
-use std::sync::mpsc::{Receiver, Sender};
 use std::time::Duration;
 
 use asynchronous::{OpeningReceiver, OpeningSender};
 use bevy::math::Vec3A;
-use bevy::prelude::{IntoExclusiveSystem, Plugin, SystemSet};
+use bevy::prelude::{ExclusiveSystemDescriptorCoercion, IntoExclusiveSystem, Plugin, SystemSet};
 use futures_lite::Future;
+use prelude::TransactionRegistry;
+use registry::RunTransactionRegistry;
 
-use self::asynchronous::RemoteThreadError;
 // use self::message::distributor::{self, AppRegisterMsgExt};
+use self::error::RemoteThreadError;
 use self::message::Message;
 
+// TODO: Move these descriptions into their modules
 /// Contains asynchronous logic using tokio which powers the remote thread
 pub mod asynchronous;
 /// Contains this crate's error types
@@ -34,6 +36,7 @@ pub mod interface;
 pub mod macros;
 /// Contains message infrastructure and some built-in message definitions
 pub mod message;
+pub mod registry;
 /// Contains logic related to serializing and deserializing reflected types and messages
 pub mod serde;
 /// Contains local-thread logic which both the editor and client depend on
@@ -41,10 +44,10 @@ pub mod systems;
 
 /// Contains all the most commonly used imports for easy usage.
 pub mod prelude {
-    pub use super::interface::{Interface, Transaction, TransactionReceiver, TransactionSender};
-    // pub use super::message::distributor::AppRegisterMsgExt;
     pub use super::error::{InterfaceError, TransactionError};
+    pub use super::interface::{Interface, Transaction, TransactionReceiver, TransactionSender};
     pub use super::message::{IntoAny, IntoReflect, Message};
+    pub use super::registry::{RunTransactionRegistry, TransactionRegistry};
     pub use super::serde::{ReflectObject, RemoteEntity};
 }
 
@@ -74,31 +77,24 @@ pub struct CommonPlugin<
 >(pub Run);
 
 impl<
-        Run: 'static
-            + Fn(
-                OpeningSender,
-                OpeningReceiver,
-                // StreamCounter,
-            ) -> F
-            + Send
-            + Sync
-            + Copy,
+        Run: 'static + Fn(OpeningSender, OpeningReceiver) -> F + Send + Sync + Copy,
         F: 'static + Future<Output = Result<(), RemoteThreadError>>,
     > Plugin for CommonPlugin<Run, F>
 {
     fn build(&self, app: &mut bevy::prelude::App) {
-        // app.insert_resource(StreamCounter::default())
-        // .add_startup_system(asynchronous::open_remote_thread(self.0).exclusive_system())
-        // .add_system_set(
-        //     SystemSet::new()
-        //         .with_run_criteria(systems::run_on_timer(Duration::from_secs(1)))
-        //         .with_system(systems::monitor_remote_thread(self.0).exclusive_system()),
-        // )
-        // app.add_distributor()
-        // .add_messages::<DefaultMessages>()
-        // .add_system(distributor::distribute_messages.exclusive_system())
-        // .add_system(distributor::collect_messages.exclusive_system())
-        app.register_type::<Cow<'static, str>>()
+        app.init_non_send_resource::<TransactionRegistry>()
+            .add_startup_system(asynchronous::open_remote_thread(self.0).exclusive_system())
+            .add_system_set(
+                SystemSet::new()
+                    .with_run_criteria(systems::run_on_timer(Duration::from_secs(1)))
+                    .with_system(systems::monitor_remote_thread(self.0).exclusive_system()),
+            )
+            .add_system(
+                registry::update_transaction_registry
+                    .exclusive_system()
+                    .label(RunTransactionRegistry),
+            )
+            .register_type::<Cow<'static, str>>()
             .register_type::<Vec3A>();
     }
 }

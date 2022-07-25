@@ -1,6 +1,5 @@
 use std::sync::mpsc::{Receiver, Sender};
 
-use common::asynchronous::RemoteThreadError;
 use common::asynchronous::{self, OpeningReceiver, OpeningSender};
 use common::deps::bevy::prelude::{EventReader, Local, Res, ResMut};
 use common::deps::bevy::reflect::Reflect;
@@ -8,7 +7,7 @@ use common::deps::bevy::utils::HashMap;
 use common::deps::futures_lite::StreamExt;
 use common::deps::quinn::Endpoint;
 use common::deps::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use common::message::messages::{EntityUpdate, SceneDiff};
+use common::error::RemoteThreadError;
 use common::message::Message;
 use common::serde::RemoteEntity;
 

@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::mem;
 use std::pin::Pin;
 use std::thread::JoinHandle;
@@ -7,19 +6,16 @@ use bevy::prelude::World;
 use bevy::reflect::TypeRegistry;
 use futures::stream::FuturesUnordered;
 use futures_lite::{Future, StreamExt};
-use quinn::{
-    ConnectError, ConnectionError, NewConnection, ReadExactError, RecvStream, SendStream,
-    WriteError,
-};
-use rcgen::RcgenError;
-use thiserror::Error;
+use quinn::{ConnectionError, NewConnection, RecvStream, SendStream};
 use tokio::select;
-use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
-use crate::interface::Interface;
-use crate::message::messages::CloseTransaction;
-use crate::message::{self, MessageDeserError};
+use crate::error::{
+    ProcessChannelError, ProcessConnectionError, ProcessStreamError, RecvError, RemoteThreadError,
+    SendError,
+};
+use crate::interface::{CloseTransaction, Interface};
+use crate::message;
 use crate::serde;
 use crate::Message;
 
@@ -57,32 +53,6 @@ type PendingMessages =
 /// A [`JoinHandle`] to the remote thread. Used by [`monitor_remote_thread`][crate::systems::monitor_remote_thread] to
 /// detect and recover from panics.
 pub struct RemoteThread(pub(crate) JoinHandle<Result<(), RemoteThreadError>>);
-
-/// A top-level error from the remote thread, indicating why it failed.
-#[derive(Debug, Error)]
-pub enum RemoteThreadError {
-    /// A connection failed to be established.
-    #[error(transparent)]
-    ConnectError(#[from] ConnectError),
-    /// A connection was lost.
-    #[error(transparent)]
-    ConnectionError(#[from] ConnectionError),
-    /// A filesystem error occurred.
-    #[error(transparent)]
-    FsWriteError(#[from] std::io::Error),
-    /// A failure occurred while processing an incoming connection.
-    #[error(transparent)]
-    ProcessConnectionError(#[from] ProcessConnectionError),
-    /// A failure occurred while using Rcgen
-    #[error(transparent)]
-    RcgenError(#[from] RcgenError),
-    /// A failure occurred while using rustls.
-    #[error(transparent)]
-    RustlsError(#[from] rustls::Error),
-    /// A miscellaneous error.
-    #[error(transparent)]
-    Other(#[from] Box<dyn Error + Send>),
-}
 
 // TODO: Connect to multiple clients?
 /// Opens the remote thread using the given run function.
@@ -122,24 +92,12 @@ pub fn open_remote_thread<F: 'static + Future<Output = Result<(), RemoteThreadEr
     }
 }
 
-/// An error that occurs when processing an incoming connection.
-#[derive(Debug, Error)]
-pub enum ProcessConnectionError {
-    /// An error occurred while processing a [`Message`] to send.
-    #[error(transparent)]
-    ProcessChannel(#[from] ProcessChannelError),
-    /// An error occurred while processing an incoming stream.
-    #[error(transparent)]
-    ProcessStream(#[from] ProcessStreamError),
-}
-
 /// Processes incoming transactions and messages to send, sending messages
 /// between the two given channels.
 pub async fn process_connection(
     mut new: NewConnection,
     tx: &OpeningSender,
     rx: &mut OpeningReceiver,
-    // stream_counter: &mut StreamCounter,
 ) -> Result<(), ProcessConnectionError> {
     let mut pending_messages = FuturesUnordered::new();
     let mut received_messages = FuturesUnordered::new();
@@ -182,23 +140,6 @@ pub async fn process_connection(
     }
 }
 
-/// An error that occurs when processing an incoming stream.
-#[derive(Debug, Error)]
-pub enum ProcessStreamError {
-    /// The stream of bi-streams unexpectedly closed.
-    #[error("bi streams closed")]
-    BiStreamsClosed,
-    /// The connection unexpectedly closed.
-    #[error(transparent)]
-    Connection(#[from] ConnectionError),
-    /// Failed to send a message to the local threads.
-    #[error(transparent)]
-    Send(#[from] tokio::sync::mpsc::error::SendError<(MessageTx, MessageRx)>),
-    /// Failed to receive a message from the remote application.
-    #[error(transparent)]
-    Recv(#[from] RecvError),
-}
-
 async fn process_incoming_bi(
     stream: Option<Result<(SendStream, RecvStream), ConnectionError>>,
     open_tx: &OpeningSender,
@@ -227,20 +168,6 @@ async fn process_incoming_bi(
     );
 
     Ok(())
-}
-
-/// An error that occurs while processing a message to send.
-#[derive(Debug, Error)]
-pub enum ProcessChannelError {
-    /// The connection was unexpectedly lost.
-    #[error(transparent)]
-    ConnectionError(#[from] ConnectionError),
-    /// The [opening channel](OpeningSender) between the remote and local threads has been closed
-    #[error("the opening channel has been closed")]
-    OpenChannelClosed,
-    /// Failed to write to the remote stream.
-    #[error(transparent)]
-    StreamWriteError(#[from] WriteError),
 }
 
 async fn process_incoming_channel(
@@ -303,24 +230,6 @@ fn setup_pending(
     pending_messages.push(Box::pin(send_message(SendState { send, rx, buffer })));
 }
 
-/// An error that occurs when attempting to receive a message from the remote application
-#[derive(Debug, Error)]
-pub enum RecvError {
-    /// Message deserialization failed.
-    #[error("failed to deserialize message from client")]
-    DeserializationFailed(#[from] MessageDeserError),
-    /// The message header was invalid, indicating corrupt or malicious
-    /// data is being sent.
-    #[error("received malformed message header {:?}", .0)]
-    InvalidData([u8; 4]),
-    /// The stream unexpectedly closed before all data could be received.
-    #[error(transparent)]
-    ReadExact(#[from] ReadExactError),
-    /// Failed to send a message to the local threads.
-    #[error(transparent)]
-    Send(#[from] tokio::sync::mpsc::error::SendError<MessageBox>),
-}
-
 async fn receive_message(
     ReceiveState {
         mut recv,
@@ -349,24 +258,6 @@ async fn receive_message(
     tx.send(msg)?;
 
     Ok(ReceiveState { recv, tx, buffer })
-}
-
-/// An error that occurs when trying to send a message to the remote application
-#[derive(Debug, Error)]
-pub enum SendError {
-    /// The [message channel](MessageTx) for this transaction was closed prematurely
-    #[error("the message channel between this transaction and the local thread is closed")]
-    ChannelClosed,
-    /// An error occurred while serializing the message.
-    #[error(transparent)]
-    SerdeYamlError(#[from] serde_yaml::Error),
-    /// The local thread sent a [signal](CloseTransaction) to close this transaction, and it was closed.
-    /// This error should always be recovered from, as it indicates normal operations.
-    #[error("the local thread closed this transaction")]
-    TransactionClosed,
-    /// Failed to write to the remote stream.
-    #[error(transparent)]
-    WriteError(#[from] WriteError),
 }
 
 async fn send_message(

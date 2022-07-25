@@ -1,7 +1,7 @@
 use common::deps::bevy::prelude::Entity;
 use common::error::InterfaceError;
 use common::interface::Interface;
-use common::message::messages::EntityUpdate;
+// use common::message::messages::EntityUpdate;
 
 // pub trait ClientInterfaceExt {
 //     fn send_entity_update(

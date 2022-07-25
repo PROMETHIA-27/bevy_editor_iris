@@ -3,80 +3,75 @@ use std::borrow::Cow;
 
 use bevy_egui::egui::{self, Ui};
 use common::deps::bevy::asset::HandleId;
+use common::deps::bevy::core::Name;
 use common::deps::bevy::math::{Mat3, Mat4, Quat, Vec2, Vec3, Vec3A, Vec4};
-use common::deps::bevy::prelude::{Color, FromWorld, Name, World};
-use common::deps::bevy::reflect::{GetPath, Reflect, ReflectRef};
-use common::serde::RemoteEntity;
+use common::deps::bevy::prelude::{Color, World};
+use common::deps::bevy::reflect::{Reflect, ReflectRef};
 
-use crate::server::EntityCache;
 use crate::tabs::EditorTab;
 
-pub struct InspectorTab {
-    selected_entity: Option<RemoteEntity>,
-    entities: EntityCache,
-}
+use super::InspectorCache;
 
-impl FromWorld for InspectorTab {
-    fn from_world(world: &mut World) -> Self {
-        let cache = world.get_resource::<EntityCache>().unwrap();
-        Self {
-            selected_entity: None,
-            entities: cache.clone(),
-        }
-    }
-}
+#[derive(Default)]
+pub struct InspectorTab;
 
 impl EditorTab for InspectorTab {
     fn name(&self) -> bevy_egui::egui::RichText {
         "Inspector".into()
     }
 
-    fn display(&mut self, ui: &mut egui::Ui) {
-        egui::SidePanel::left("Entity List")
-            .resizable(true)
-            .show_inside(ui, |ui| {
-                egui::ScrollArea::new([true, true])
-                    .auto_shrink([false, false])
-                    .show(ui, |ui| {
-                        let cache = self.entities.read().unwrap();
-                        for (entity, components) in cache.iter() {
-                            let selected = self.selected_entity == Some(*entity);
-                            let name = components.get(any::type_name::<Name>()).and_then(|name| {
-                                name.get_path::<Cow<'static, str>>("name")
-                                    .ok()
-                                    .map(|s| s.to_string())
-                            });
-                            if ui
-                                .selectable_label(
-                                    selected,
-                                    name.unwrap_or_else(|| entity.to_string()),
-                                )
-                                .clicked()
-                            {
-                                self.selected_entity.replace(*entity);
-                            }
-                        }
-                    });
-            });
+    fn display(&mut self, ui: &mut egui::Ui, world: &mut World) {
+        let cache: InspectorCache = world.remove_resource().unwrap();
 
-        egui::CentralPanel::default().show_inside(ui, |ui| {
-            egui::ScrollArea::new([true, true])
-                .auto_shrink([false, false])
-                .show(ui, |ui| {
-                    ui.vertical(|ui| {
-                        if let Some(entity) = &self.selected_entity {
-                            let cache = self.entities.read().unwrap();
-                            if let Some(components) = cache.get(entity) {
-                                for (name, component) in components.iter() {
-                                    egui::CollapsingHeader::new(name)
-                                        .default_open(true)
-                                        .show(ui, |ui| display_component(ui, &*component));
-                                }
-                            }
-                        }
-                    });
-                });
-        });
+        // egui::SidePanel::left("Entity List")
+        //     .resizable(true)
+        //     .show_inside(ui, |ui| {
+        //         egui::ScrollArea::new([true, true])
+        //             .auto_shrink([false, false])
+        //             .show(ui, |ui| {
+        //                 for entity in cache.entities().iter() {
+        //                     let selected = cache.selected().as_ref() == Some(entity);
+        //                     let name = cache
+        //                         .selected_components()
+        //                         .sear(any::type_name::<Name>())
+        //                         .and_then(|name| {
+        //                             name.get_path::<Cow<'static, str>>("name")
+        //                                 .ok()
+        //                                 .map(|s| s.to_string())
+        //                         });
+        //                     if ui
+        //                         .selectable_label(
+        //                             selected,
+        //                             name.unwrap_or_else(|| entity.to_string()),
+        //                         )
+        //                         .clicked()
+        //                     {
+        //                         self.selected_entity.replace(*entity);
+        //                     }
+        //                 }
+        //             });
+        //     });
+
+        // egui::CentralPanel::default().show_inside(ui, |ui| {
+        //     egui::ScrollArea::new([true, true])
+        //         .auto_shrink([false, false])
+        //         .show(ui, |ui| {
+        //             ui.vertical(|ui| {
+        //                 if let Some(entity) = &self.selected_entity {
+        //                     let cache = self.entities.read().unwrap();
+        //                     if let Some(components) = cache.get(entity) {
+        //                         for (name, component) in components.iter() {
+        //                             egui::CollapsingHeader::new(name)
+        //                                 .default_open(true)
+        //                                 .show(ui, |ui| display_component(ui, &*component));
+        //                         }
+        //                     }
+        //                 }
+        //             });
+        //         });
+        // });
+
+        world.insert_resource(cache);
     }
 }
 
@@ -122,6 +117,7 @@ fn display_component(ui: &mut Ui, component: &dyn Reflect) {
             }
         }
         // TODO: ReflectDebug should make this not awful
+        // TODO: typematch_ref to make this less awful?
         ReflectRef::Value(comp) => match comp.type_id() {
             id if id == TypeId::of::<bool>() => {
                 ui.label(comp.downcast_ref::<bool>().unwrap().to_string());
@@ -174,10 +170,12 @@ fn display_component(ui: &mut Ui, component: &dyn Reflect) {
             id if id == TypeId::of::<HandleId>() => {
                 ui.label(format!("{:?}", comp.downcast_ref::<HandleId>().unwrap()));
             }
+            // TODO: This should be a ReflectEnum rather than ReflectValue in 0.8,
+            // so it won't belong here anymore
             id if id == TypeId::of::<Color>() => {
                 ui.label(format!("{:?}", comp.downcast_ref::<Color>().unwrap()));
             }
-            // TODO: These values will become structs (except for quat, which should be unrecognized)
+            // TODO: These values will become structs in 0.8 (except for quat, which will be unrecognized because it's readonly (somehow))
             id if id == TypeId::of::<Vec2>() => {
                 ui.label(format!("{:?}", comp.downcast_ref::<Vec2>().unwrap()));
             }

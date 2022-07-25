@@ -1,7 +1,8 @@
 use std::any::{self, Any, TypeId};
+use std::mem;
 
 use bevy_egui::egui;
-use common::deps::bevy::prelude::{default, App, FromWorld, Plugin};
+use common::deps::bevy::prelude::{default, App, FromWorld, Plugin, World};
 use common::deps::bevy::reflect::{self as bevy_reflect, Reflect};
 use common::deps::bevy::utils::HashMap;
 
@@ -40,8 +41,8 @@ impl TabRegistration {
         self.tab.name()
     }
 
-    pub fn display(&mut self, ui: &mut egui::Ui) {
-        self.tab.display(ui);
+    pub fn display(&mut self, ui: &mut egui::Ui, world: &mut World) {
+        self.tab.display(ui, world);
     }
 
     pub fn type_id(&self) -> TypeId {
@@ -90,7 +91,7 @@ impl TabRegistry {
     }
 
     pub fn take(&mut self) -> Self {
-        std::mem::take(self)
+        mem::take(self)
     }
 }
 
@@ -100,7 +101,7 @@ where
 {
     fn name(&self) -> egui::RichText;
 
-    fn display(&mut self, ui: &mut egui::Ui);
+    fn display(&mut self, ui: &mut egui::Ui, world: &mut World);
 
     fn on_register(&mut self, _app: &mut App) {}
 }

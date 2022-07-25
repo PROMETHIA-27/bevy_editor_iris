@@ -12,5 +12,10 @@ path = "../bevy_editor_iris_common"
 package = "bevy_editor_iris_common"
 version = "0.1"
 
+[dependencies.derive]
+path = "../bevy_editor_iris_derive"
+package = "bevy_editor_iris_derive"
+version = "0.1"
+
 [dependencies]
 bevy_egui = "0.14.0"

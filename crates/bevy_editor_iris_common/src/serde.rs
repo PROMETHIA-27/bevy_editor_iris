@@ -2,7 +2,6 @@ use std::borrow::{Borrow, BorrowMut};
 use std::cell::RefCell;
 use std::hash::Hash;
 
-use bevy::math::Vec4;
 use bevy::prelude::{default, Entity};
 use bevy::reflect::{FromReflect, Reflect, TypeRegistry};
 use serde::de::DeserializeSeed;
@@ -14,7 +13,20 @@ use serde::{Deserialize, Serialize, Serializer};
 ///
 /// A `RemoteEntity` can be constructed from an [`Entity`] with [`Into`], but not the other
 /// way around.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, FromReflect, Hash, PartialEq, Reflect, Serialize)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Deserialize,
+    Eq,
+    FromReflect,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Reflect,
+    Serialize,
+)]
 #[reflect(Hash, PartialEq)]
 pub struct RemoteEntity {
     pub(crate) bits: u64,
@@ -207,6 +219,8 @@ impl<'de> Deserialize<'de> for ReflectObject {
 
 #[test]
 fn reflect_object_serialization() -> Result<(), Box<dyn std::error::Error>> {
+    use bevy::math::Vec4;
+
     let registry = TypeRegistry::default();
 
     #[derive(Clone, Debug, Default, PartialEq, Reflect)]

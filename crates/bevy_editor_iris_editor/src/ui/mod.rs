@@ -1,5 +1,5 @@
 use bevy_egui::EguiPlugin;
-use common::deps::bevy::prelude::{App, Plugin};
+use common::deps::bevy::prelude::{App, IntoExclusiveSystem, Plugin};
 
 mod systems;
 
@@ -7,6 +7,7 @@ pub struct UiPlugin;
 
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(EguiPlugin).add_system(systems::ui);
+        app.add_plugin(EguiPlugin)
+            .add_system(systems::ui.exclusive_system());
     }
 }

@@ -1,7 +1,7 @@
 use std::any::TypeId;
 use std::sync::mpsc::{Receiver, Sender};
 
-use common::asynchronous::{self, OpeningReceiver, OpeningSender, RemoteThreadError};
+use common::asynchronous::{self, OpeningReceiver, OpeningSender};
 use common::deps::bevy::ecs::archetype::ArchetypeId;
 use common::deps::bevy::ecs::component::{ComponentId, ComponentTicks, StorageType};
 use common::deps::bevy::pbr::CubemapVisibleEntities;
@@ -11,8 +11,9 @@ use common::deps::bevy::render::primitives::{CubemapFrusta, Frustum};
 use common::deps::bevy::render::view::VisibleEntities;
 use common::deps::bevy::utils::{HashMap, HashSet};
 use common::deps::quinn::Endpoint;
+use common::error::RemoteThreadError;
 use common::interface::Interface;
-use common::message::messages::SceneDiff;
+// use common::message::messages::SceneDiff;
 use common::serde::ReflectObject;
 
 use super::client_config;
